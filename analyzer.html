@@ -8,6 +8,7 @@
     <!-- CDN Libraries -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -395,6 +396,22 @@
                         <h3 class="text-lg font-bold text-gray-900 mb-2">管理図</h3>
                         <p class="text-gray-600 text-sm">3σ管理限界と異常点の検出</p>
                     </div>
+                    
+                    <div class="analysis-card rounded-2xl p-6 cursor-pointer border-2 border-pink-200 hover:border-pink-400" onclick="runAnalysis('mahalanobis')">
+                        <div class="card-icon w-12 h-12 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-crosshairs text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">マハラノビス距離</h3>
+                        <p class="text-gray-600 text-sm">多変量データの異常値検出（2変数必須）</p>
+                    </div>
+                    
+                    <div class="analysis-card rounded-2xl p-6 cursor-pointer border-2 border-teal-200 hover:border-teal-400" onclick="runAnalysis('outlier')">
+                        <div class="card-icon w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">異常値検出</h3>
+                        <p class="text-gray-600 text-sm">IQR法・Z-score法・修正Z-score法</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -481,603 +498,80 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- External JavaScript Files -->
+    <script src="app.js"></script>
     <script src="analysis.js"></script>
     <script src="visualization.js"></script>
     <script src="interpretation.js"></script>
-    
+
     <script>
-        // Global variables
-        let analysisData = null;
-        let currentData = null;
-        let currentDataKey = null;
-        let uploadedData = {};
-        
-        // Initialize page
-        window.addEventListener('DOMContentLoaded', function() {
-            initializeFileUpload();
-            // Check if coming from localStorage
-            const storedData = localStorage.getItem('analysisData');
-            if (storedData) {
-                loadAnalysisData();
-            }
-        });
-        
-        // Initialize file upload functionality
-        function initializeFileUpload() {
-            const fileDropZone = document.getElementById('fileDropZone');
-            const fileInput = document.getElementById('fileInput');
-            
-            // File drop zone events
-            fileDropZone.addEventListener('click', () => fileInput.click());
-            fileDropZone.addEventListener('dragover', handleDragOver);
-            fileDropZone.addEventListener('dragleave', handleDragLeave);
-            fileDropZone.addEventListener('drop', handleFileDrop);
-            
-            // File input change
-            fileInput.addEventListener('change', handleFileSelect);
-            
-            // Column selection events
-            document.getElementById('fileSelector').addEventListener('change', handleFileSelection);
-            document.getElementById('xColumnSelect').addEventListener('change', updateAnalysisOptions);
-            document.getElementById('yColumnSelect').addEventListener('change', updateAnalysisOptions);
-        }
-        
-        // File handling functions
-        function handleDragOver(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.classList.add('dragover');
-        }
-        
-        function handleDragLeave(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.classList.remove('dragover');
-        }
-        
-        function handleFileDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.classList.remove('dragover');
-            
-            const files = e.dataTransfer.files;
-            processFiles(files);
-        }
-        
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            processFiles(files);
-        }
-        
-        // Process uploaded files
-        async function processFiles(files) {
-            const fileList = document.getElementById('fileList');
-            const uploadedFiles = document.getElementById('uploadedFiles');
-            const fileSelector = document.getElementById('fileSelector');
-            
-            const maxSize = 50 * 1024 * 1024; // 50MB
-            
-            for (let file of files) {
-                if (file.size > maxSize) {
-                    alert(`ファイル "${file.name}" のサイズが50MBを超えています。`);
-                    continue;
-                }
-                
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for data from localStorage (from index.html)
+            const analysisData = localStorage.getItem('analysisData');
+            if (analysisData) {
                 try {
-                    const data = await readFile(file);
-                    const fileKey = `${file.name}_${Date.now()}`;
+                    const data = JSON.parse(analysisData);
+                    currentData = data.data;
+                    currentDataKey = data.selectedFile;
                     
-                    uploadedData[fileKey] = {
-                        name: file.name,
-                        data: data,
-                        type: getFileType(file.name),
+                    // Add to uploadedData
+                    uploadedData[data.selectedFile] = {
+                        name: data.fileName,
+                        data: data.data,
                         uploadDate: new Date().toLocaleString('ja-JP')
                     };
                     
-                    // Add to UI
-                    addFileToList(fileKey, uploadedFiles);
-                    addFileToSelector(fileKey, fileSelector);
+                    // Update UI
+                    const fileSelector = document.getElementById('fileSelector');
+                    if (fileSelector) {
+                        const option = document.createElement('option');
+                        option.value = data.selectedFile;
+                        option.textContent = `${data.fileName} (${data.data.length} 行)`;
+                        option.selected = true;
+                        fileSelector.appendChild(option);
+                    }
+                    
+                    // Populate column selectors
+                    populateColumnSelectors(currentData);
+                    
+                    // Set previously selected columns
+                    const xColumnSelect = document.getElementById('xColumnSelect');
+                    const yColumnSelect = document.getElementById('yColumnSelect');
+                    
+                    if (data.xColumn && xColumnSelect) {
+                        xColumnSelect.value = data.xColumn;
+                    }
+                    if (data.yColumn && yColumnSelect) {
+                        yColumnSelect.value = data.yColumn;
+                    }
+                    
+                    // Show sections
+                    displayDataInfo(currentData);
+                    const sections = [
+                        'dataPreviewSection',
+                        'dataPreviewControls', 
+                        'columnSelectionSection',
+                        'analysisSelectionSection'
+                    ];
+                    
+                    sections.forEach(sectionId => {
+                        const section = document.getElementById(sectionId);
+                        if (section) {
+                            section.classList.remove('hidden');
+                        }
+                    });
+                    
+                    // Clear localStorage
+                    localStorage.removeItem('analysisData');
                     
                 } catch (error) {
-                    console.error('ファイル読み込みエラー:', error);
-                    alert(`ファイル "${file.name}" の読み込みに失敗しました。`);
+                    console.error('データ読み込みエラー:', error);
+                    localStorage.removeItem('analysisData');
                 }
             }
-            
-            // Show file list
-            if (Object.keys(uploadedData).length > 0) {
-                fileList.classList.remove('hidden');
-                document.getElementById('dataPreviewSection').classList.remove('hidden');
-            }
-        }
-        
-        // File reading function
-        function readFile(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    try {
-                        const content = e.target.result;
-                        const fileType = getFileType(file.name);
-                        let data;
-                        
-                        switch (fileType) {
-                            case 'csv':
-                            case 'tsv':
-                                data = parseCSV(content, fileType === 'tsv' ? '\t' : ',');
-                                break;
-                            case 'xlsx':
-                                data = parseExcel(content);
-                                break;
-                            case 'json':
-                                data = JSON.parse(content);
-                                break;
-                            default:
-                                throw new Error('サポートされていないファイル形式です');
-                        }
-                        
-                        resolve(data);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                
-                reader.onerror = () => reject(new Error('ファイル読み込みエラー'));
-                
-                if (getFileType(file.name) === 'xlsx') {
-                    reader.readAsArrayBuffer(file);
-                } else {
-                    reader.readAsText(file);
-                }
-            });
-        }
-        
-        // File type detection
-        function getFileType(filename) {
-            const extension = filename.toLowerCase().split('.').pop();
-            return extension;
-        }
-        
-        // CSV parsing
-        function parseCSV(content, delimiter = ',') {
-            const lines = content.trim().split('\n');
-            const headers = lines[0].split(delimiter).map(h => h.trim().replace(/"/g, ''));
-            
-            const data = [];
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ''));
-                const row = {};
-                
-                headers.forEach((header, index) => {
-                    const value = values[index] || '';
-                    const numValue = parseFloat(value);
-                    row[header] = isNaN(numValue) ? value : numValue;
-                });
-                
-                data.push(row);
-            }
-            
-            return data;
-        }
-        
-        // Excel parsing
-        function parseExcel(arrayBuffer) {
-            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            
-            return XLSX.utils.sheet_to_json(worksheet);
-        }
-        
-        // UI helper functions
-        function addFileToList(fileKey, container) {
-            const fileInfo = uploadedData[fileKey];
-            const li = document.createElement('li');
-            li.className = 'flex justify-between items-center p-3 bg-gray-50 rounded';
-            
-            li.innerHTML = `
-                <div>
-                    <span class="font-medium">${fileInfo.name}</span>
-                    <span class="text-sm text-gray-500 ml-2">(${fileInfo.data.length} 行)</span>
-                </div>
-                <div class="text-sm text-gray-500">
-                    ${fileInfo.uploadDate}
-                </div>
-            `;
-            
-            container.appendChild(li);
-        }
-        
-        function addFileToSelector(fileKey, selector) {
-            const fileInfo = uploadedData[fileKey];
-            const option = document.createElement('option');
-            option.value = fileKey;
-            option.textContent = `${fileInfo.name} (${fileInfo.data.length} 行)`;
-            
-            selector.appendChild(option);
-        }
-        
-        // File selection handler
-        function handleFileSelection(e) {
-            const fileKey = e.target.value;
-            if (fileKey && uploadedData[fileKey]) {
-                currentDataKey = fileKey;
-                currentData = uploadedData[fileKey].data;
-                
-                displayDataPreview(currentData);
-                populateColumnSelectors(currentData);
-                updateDataInfo();
-                
-                document.getElementById('columnSelectionSection').classList.remove('hidden');
-                document.getElementById('dataInfoSection').classList.remove('hidden');
-            }
-        }
-        
-        // Data preview display
-        function displayDataPreview(data) {
-            const previewContainer = document.getElementById('dataPreview');
-            const dataInfo = document.getElementById('dataInfo');
-            
-            if (!data || data.length === 0) {
-                previewContainer.innerHTML = '<p class="text-gray-500 p-4">データがありません</p>';
-                return;
-            }
-            
-            const previewData = data.slice(0, 1000);
-            const columns = Object.keys(data[0]);
-            
-            let html = '<table class="min-w-full border-collapse border border-gray-300">';
-            
-            // Header
-            html += '<thead><tr class="bg-gray-100">';
-            columns.forEach(col => {
-                html += `<th class="border border-gray-300 px-4 py-2 text-left font-medium">${col}</th>`;
-            });
-            html += '</tr></thead>';
-            
-            // Data rows
-            html += '<tbody>';
-            previewData.forEach((row, index) => {
-                html += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
-                columns.forEach(col => {
-                    const value = row[col] !== undefined ? row[col] : '';
-                    html += `<td class="border border-gray-300 px-4 py-2">${value}</td>`;
-                });
-                html += '</tr>';
-            });
-            html += '</tbody></table>';
-            
-            previewContainer.innerHTML = html;
-            
-            dataInfo.innerHTML = `
-                <strong>データ情報:</strong> 
-                ${data.length} 行, ${columns.length} 列
-                ${data.length > 1000 ? ' (最初の1000行を表示)' : ''}
-            `;
-        }
-        
-        // Column selectors population
-        function populateColumnSelectors(data) {
-            if (!data || data.length === 0) return;
-            
-            const columns = Object.keys(data[0]);
-            const xSelect = document.getElementById('xColumnSelect');
-            const ySelect = document.getElementById('yColumnSelect');
-            
-            xSelect.innerHTML = '<option value="">列を選択してください</option>';
-            ySelect.innerHTML = '<option value="">列を選択してください</option>';
-            
-            columns.forEach(col => {
-                const isNumeric = data.some(row => typeof row[col] === 'number');
-                if (isNumeric) {
-                    const optionX = document.createElement('option');
-                    const optionY = document.createElement('option');
-                    
-                    optionX.value = col;
-                    optionX.textContent = col;
-                    optionY.value = col;
-                    optionY.textContent = col;
-                    
-                    xSelect.appendChild(optionX);
-                    ySelect.appendChild(optionY);
-                }
-            });
-        }
-        
-        // Update analysis options
-        function updateAnalysisOptions() {
-            const xColumn = document.getElementById('xColumnSelect').value;
-            const yColumn = document.getElementById('yColumnSelect').value;
-            
-            if (xColumn || yColumn) {
-                document.getElementById('analysisSelectionSection').classList.remove('hidden');
-                updateDataInfo();
-            }
-        }
-        
-        // Update data info display
-        function updateDataInfo() {
-            if (!currentData || !uploadedData[currentDataKey]) return;
-            
-            const xColumn = document.getElementById('xColumnSelect').value;
-            const yColumn = document.getElementById('yColumnSelect').value;
-            const columnCount = Object.keys(currentData[0]).length;
-            
-            const infoDiv = document.getElementById('currentDataInfo');
-            infoDiv.innerHTML = `
-                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <i class="fas fa-file text-blue-600 text-xl mr-3"></i>
-                            <div>
-                                <p class="text-sm text-gray-500">ファイル名</p>
-                                <p class="font-semibold">${uploadedData[currentDataKey].name}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <i class="fas fa-table text-green-600 text-xl mr-3"></i>
-                            <div>
-                                <p class="text-sm text-gray-500">データ行数</p>
-                                <p class="font-semibold">${currentData.length.toLocaleString()} 行</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <i class="fas fa-columns text-purple-600 text-xl mr-3"></i>
-                            <div>
-                                <p class="text-sm text-gray-500">列数</p>
-                                <p class="font-semibold">${columnCount} 列</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <i class="fas fa-arrow-right text-orange-600 text-xl mr-3"></i>
-                            <div>
-                                <p class="text-sm text-gray-500">分析対象</p>
-                                <p class="font-semibold">${xColumn || yColumn || '未選択'}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Load data from localStorage (if coming from homepage)
-        function loadAnalysisData() {
-            const storedData = localStorage.getItem('analysisData');
-            if (!storedData) return;
-            
-            try {
-                analysisData = JSON.parse(storedData);
-                currentData = analysisData.data;
-                
-                // Simulate uploaded data
-                const fileKey = `${analysisData.fileName}_loaded`;
-                uploadedData[fileKey] = {
-                    name: analysisData.fileName,
-                    data: analysisData.data,
-                    type: 'loaded',
-                    uploadDate: new Date().toLocaleString('ja-JP')
-                };
-                
-                currentDataKey = fileKey;
-                
-                // Update UI
-                const fileList = document.getElementById('fileList');
-                const uploadedFiles = document.getElementById('uploadedFiles');
-                const fileSelector = document.getElementById('fileSelector');
-                
-                addFileToList(fileKey, uploadedFiles);
-                addFileToSelector(fileKey, fileSelector);
-                fileList.classList.remove('hidden');
-                
-                // Auto-select the loaded file
-                fileSelector.value = fileKey;
-                displayDataPreview(currentData);
-                populateColumnSelectors(currentData);
-                
-                // Set previously selected columns
-                if (analysisData.xColumn) {
-                    document.getElementById('xColumnSelect').value = analysisData.xColumn;
-                }
-                if (analysisData.yColumn) {
-                    document.getElementById('yColumnSelect').value = analysisData.yColumn;
-                }
-                
-                updateDataInfo();
-                document.getElementById('dataPreviewSection').classList.remove('hidden');
-                document.getElementById('columnSelectionSection').classList.remove('hidden');
-                document.getElementById('dataInfoSection').classList.remove('hidden');
-                document.getElementById('analysisSelectionSection').classList.remove('hidden');
-                
-                // Clear localStorage
-                localStorage.removeItem('analysisData');
-                
-            } catch (error) {
-                console.error('データ読み込みエラー:', error);
-                localStorage.removeItem('analysisData');
-            }
-        }
-        
-        // Navigation functions
-        function goHome() {
-            window.location.href = 'index.html';
-        }
-        
-        // Process capability form functions
-        function showProcessCapabilityForm() {
-            document.getElementById('processCapabilityForm').classList.remove('hidden');
-        }
-        
-        function hideProcessCapabilityForm() {
-            document.getElementById('processCapabilityForm').classList.add('hidden');
-        }
-        
-        // Analysis execution
-        async function runAnalysis(analysisType) {
-            if (!currentData) {
-                alert('データが読み込まれていません。');
-                return;
-            }
-            
-            // Show loading
-            document.getElementById('loadingSection').classList.remove('hidden');
-            document.getElementById('visualizationSection').classList.add('hidden');
-            document.getElementById('resultsSection').classList.add('hidden');
-            
-            try {
-                // Get selected columns
-                const xColumn = document.getElementById('xColumnSelect').value;
-                const yColumn = document.getElementById('yColumnSelect').value;
-                
-                // Preprocess data
-                let processedData;
-                
-                switch (analysisType) {
-                    case 'correlation':
-                    case 'regression':
-                        if (!xColumn || !yColumn) {
-                            alert('相関分析・回帰分析にはX軸とY軸の両方が必要です。');
-                            return;
-                        }
-                        processedData = preprocessData(currentData, [xColumn, yColumn]);
-                        break;
-                        
-                    case 'descriptive':
-                    case 'histogram':
-                    case 'controlChart':
-                        const targetColumn = xColumn || yColumn;
-                        if (!targetColumn) {
-                            alert('分析する列が選択されていません。');
-                            return;
-                        }
-                        processedData = preprocessData(currentData, [targetColumn]);
-                        break;
-                        
-                    case 'processCapability':
-                        const usl = parseFloat(document.getElementById('uslInput').value);
-                        const lsl = parseFloat(document.getElementById('lslInput').value);
-                        
-                        if (isNaN(usl) && isNaN(lsl)) {
-                            alert('上限規格値または下限規格値を入力してください。');
-                            return;
-                        }
-                        
-                        const pcColumn = xColumn || yColumn;
-                        if (!pcColumn) {
-                            alert('分析する列が選択されていません。');
-                            return;
-                        }
-                        
-                        processedData = preprocessData(currentData, [pcColumn]);
-                        break;
-                        
-                    default:
-                        alert('サポートされていない分析です。');
-                        return;
-                }
-                
-                // Perform analysis
-                const results = await performAnalysis(analysisType, processedData, { 
-                    xColumn, 
-                    yColumn,
-                    usl: analysisType === 'processCapability' ? parseFloat(document.getElementById('uslInput').value) : undefined,
-                    lsl: analysisType === 'processCapability' ? parseFloat(document.getElementById('lslInput').value) : undefined
-                });
-                
-                // Display results
-                displayResults(results, analysisType);
-                
-                // Hide process capability form if shown
-                if (analysisType === 'processCapability') {
-                    hideProcessCapabilityForm();
-                }
-                
-            } catch (error) {
-                console.error('分析エラー:', error);
-                alert('分析の実行中にエラーが発生しました: ' + error.message);
-            } finally {
-                // Hide loading
-                document.getElementById('loadingSection').classList.add('hidden');
-            }
-        }
-        
-        // Display analysis results
-        function displayResults(results, analysisType) {
-            if (results.visualization) {
-                createVisualization(results.visualization);
-                document.getElementById('visualizationSection').classList.remove('hidden');
-            }
-            
-            if (results.statistics) {
-                displayStatistics(results.statistics, analysisType);
-                document.getElementById('resultsSection').classList.remove('hidden');
-            }
-            
-            // Add interpretation if available
-            if (window.interpretResults) {
-                const interpretation = interpretResults(results, analysisType);
-                if (interpretation) {
-                    document.getElementById('interpretationText').innerHTML = interpretation;
-                    document.getElementById('interpretationResults').classList.remove('hidden');
-                }
-            }
-        }
-        
-        // Create visualization
-        function createVisualization(vizData) {
-            const container = document.getElementById('plotContainer');
-            Plotly.newPlot(container, vizData.data, vizData.layout, {
-                responsive: true,
-                displayModeBar: true,
-                modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
-            });
-        }
-        
-        // Display statistics
-        function displayStatistics(stats, analysisType) {
-            const container = document.getElementById('analysisResults');
-            container.innerHTML = formatStatistics(stats, analysisType);
-        }
-        
-        // Format statistics for display
-        function formatStatistics(stats, analysisType) {
-            let html = '<div class="grid gap-4">';
-            
-            Object.entries(stats).forEach(([key, value]) => {
-                html += `
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="font-semibold text-gray-700">${key}</span>
-                            <span class="text-lg font-bold text-purple-600">${typeof value === 'number' ? value.toFixed(4) : value}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            return html;
-        }
-        
-        // Download plot function
-        function downloadPlot(format) {
-            const container = document.getElementById('plotContainer');
-            if (container && container.data) {
-                Plotly.downloadImage(container, {
-                    format: format,
-                    width: 1200,
-                    height: 800,
-                    filename: `analysis_result_${new Date().getTime()}`
-                });
-            }
-        }
+            // app.jsのDOMContentLoadedイベントリスナーが自動的にファイルアップロード機能を初期化します
+        });
     </script>
 </body>
 </html> 

@@ -17,14 +17,21 @@ function initializeFileUpload() {
     const fileDropZone = document.getElementById('fileDropZone');
     const fileInput = document.getElementById('fileInput');
 
-    // ドラッグ&ドロップイベント
-    fileDropZone.addEventListener('click', () => fileInput.click());
-    fileDropZone.addEventListener('dragover', handleDragOver);
-    fileDropZone.addEventListener('dragleave', handleDragLeave);
-    fileDropZone.addEventListener('drop', handleFileDrop);
+    // 重複登録を防ぐため、既存のイベントリスナーをチェック
+    if (fileDropZone && !fileDropZone.hasAttribute('data-upload-initialized')) {
+        // ドラッグ&ドロップイベント
+        fileDropZone.addEventListener('click', () => fileInput.click());
+        fileDropZone.addEventListener('dragover', handleDragOver);
+        fileDropZone.addEventListener('dragleave', handleDragLeave);
+        fileDropZone.addEventListener('drop', handleFileDrop);
+        fileDropZone.setAttribute('data-upload-initialized', 'true');
+    }
     
     // ファイル選択イベント
-    fileInput.addEventListener('change', handleFileSelect);
+    if (fileInput && !fileInput.hasAttribute('data-input-initialized')) {
+        fileInput.addEventListener('change', handleFileSelect);
+        fileInput.setAttribute('data-input-initialized', 'true');
+    }
 }
 
 // イベントリスナーの初期化
@@ -33,9 +40,21 @@ function initializeEventListeners() {
     const xColumnSelect = document.getElementById('xColumnSelect');
     const yColumnSelect = document.getElementById('yColumnSelect');
     
-    fileSelector.addEventListener('change', handleFileSelection);
-    xColumnSelect.addEventListener('change', updateAnalysisOptions);
-    yColumnSelect.addEventListener('change', updateAnalysisOptions);
+    // 重複登録を防ぐため、既存のイベントリスナーをチェック
+    if (fileSelector && !fileSelector.hasAttribute('data-listener-added')) {
+        fileSelector.addEventListener('change', handleFileSelection);
+        fileSelector.setAttribute('data-listener-added', 'true');
+    }
+    
+    if (xColumnSelect && !xColumnSelect.hasAttribute('data-listener-added')) {
+        xColumnSelect.addEventListener('change', updateAnalysisOptions);
+        xColumnSelect.setAttribute('data-listener-added', 'true');
+    }
+    
+    if (yColumnSelect && !yColumnSelect.hasAttribute('data-listener-added')) {
+        yColumnSelect.addEventListener('change', updateAnalysisOptions);
+        yColumnSelect.setAttribute('data-listener-added', 'true');
+    }
 }
 
 // ドラッグオーバー処理
@@ -477,8 +496,23 @@ async function runAnalysis(analysisType) {
                 break;
                 
             case 'processCapability':
-                showProcessCapabilityForm();
-                return;
+                if (!xColumn && !yColumn) {
+                    showNotification('分析する列を選択してください。', 'warning');
+                    return;
+                }
+                targetColumn = xColumn || yColumn;
+                
+                // USLとLSLの値を取得
+                const usl = parseFloat(document.getElementById('uslInput').value);
+                const lsl = parseFloat(document.getElementById('lslInput').value);
+                
+                if (isNaN(usl) && isNaN(lsl)) {
+                    showNotification('上限規格値または下限規格値を入力してください。', 'warning');
+                    return;
+                }
+                
+                processedData = await preprocessDataAsync(currentData, [targetColumn]);
+                break;
                 
             case 'controlChart':
                 if (!xColumn && !yColumn) {
@@ -506,11 +540,18 @@ async function runAnalysis(analysisType) {
         const results = await performAnalysis(analysisType, processedData, { 
             xColumn, 
             yColumn, 
-            targetColumn: targetColumn || xColumn 
+            targetColumn: targetColumn || xColumn,
+            usl: analysisType === 'processCapability' ? parseFloat(document.getElementById('uslInput').value) : undefined,
+            lsl: analysisType === 'processCapability' ? parseFloat(document.getElementById('lslInput').value) : undefined
         });
         
         // 結果表示
         await displayResults(analysisType, results);
+        
+        // 工程能力分析の場合はフォームを非表示
+        if (analysisType === 'processCapability') {
+            hideProcessCapabilityForm();
+        }
         
         showNotification('分析が完了しました！', 'success');
         
@@ -697,93 +738,124 @@ function displayAnalysisResults(analysisType, results) {
     const resultsContainer = document.getElementById('analysisResults');
     let html = '';
     
-    switch (analysisType) {
-        case 'correlation':
-            html = `
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-chart-line mr-2 text-blue-600"></i>
-                            Pearson相関係数
-                        </h4>
-                        <div class="text-3xl font-bold text-blue-600 mb-2">${results.pearsonR.toFixed(4)}</div>
-                        <div class="text-sm text-gray-600">
-                            ${Math.abs(results.pearsonR) > 0.7 ? '強い' : Math.abs(results.pearsonR) > 0.3 ? '中程度の' : '弱い'}
-                            ${results.pearsonR > 0 ? '正の' : '負の'}相関
+    if (results.statistics) {
+        html = '<div class="grid gap-4">';
+        
+        Object.entries(results.statistics).forEach(([key, value]) => {
+            let displayValue;
+            if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+                displayValue = value % 1 === 0 ? value.toString() : value.toFixed(4);
+            } else {
+                displayValue = value || 'N/A';
+            }
+                
+            html += `
+                <div class="bg-white p-4 rounded-lg shadow-sm border">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-gray-700">${key}</span>
+                        <span class="text-lg font-bold text-purple-600">${displayValue}</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+    } else {
+        // 旧形式の結果に対応（後方互換性）
+        switch (analysisType) {
+            case 'correlation':
+                if (results.pearsonR !== undefined) {
+                    html = `
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="bg-white p-6 rounded-xl shadow-sm border">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-chart-line mr-2 text-blue-600"></i>
+                                    Pearson相関係数
+                                </h4>
+                                <div class="text-3xl font-bold text-blue-600 mb-2">${results.pearsonR.toFixed(4)}</div>
+                                <div class="text-sm text-gray-600">
+                                    ${Math.abs(results.pearsonR) > 0.7 ? '強い' : Math.abs(results.pearsonR) > 0.3 ? '中程度の' : '弱い'}
+                                    ${results.pearsonR > 0 ? '正の' : '負の'}相関
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-sm border">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                    <i class="fas fa-sort-numeric-up mr-2 text-green-600"></i>
+                                    Spearman相関係数
+                                </h4>
+                                <div class="text-3xl font-bold text-green-600 mb-2">${results.spearmanR.toFixed(4)}</div>
+                                <div class="text-sm text-gray-600">順位相関（非線形関係も検出）</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                            <i class="fas fa-sort-numeric-up mr-2 text-green-600"></i>
-                            Spearman相関係数
-                        </h4>
-                        <div class="text-3xl font-bold text-green-600 mb-2">${results.spearmanR.toFixed(4)}</div>
-                        <div class="text-sm text-gray-600">順位相関（非線形関係も検出）</div>
-                    </div>
-                </div>
-            `;
-            break;
-            
-        case 'regression':
-            html = `
-                <div class="grid md:grid-cols-3 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4">回帰式</h4>
-                        <div class="text-lg font-mono bg-gray-100 p-3 rounded">
-                            y = ${results.slope.toFixed(4)}x + ${results.intercept.toFixed(4)}
+                    `;
+                }
+                break;
+                
+            case 'regression':
+                if (results.slope !== undefined) {
+                    html = `
+                        <div class="grid md:grid-cols-3 gap-6">
+                            <div class="bg-white p-6 rounded-xl shadow-sm border">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4">回帰式</h4>
+                                <div class="text-lg font-mono bg-gray-100 p-3 rounded">
+                                    y = ${results.slope.toFixed(4)}x + ${results.intercept.toFixed(4)}
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-sm border">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4">決定係数 (R²)</h4>
+                                <div class="text-3xl font-bold text-purple-600">${results.rSquared.toFixed(4)}</div>
+                                <div class="text-sm text-gray-600">${(results.rSquared * 100).toFixed(1)}% の変動を説明</div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-sm border">
+                                <h4 class="text-lg font-semibold text-gray-800 mb-4">傾き</h4>
+                                <div class="text-2xl font-bold text-orange-600">${results.slope.toFixed(4)}</div>
+                                <div class="text-sm text-gray-600">1単位増加あたりの変化</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4">決定係数 (R²)</h4>
-                        <div class="text-3xl font-bold text-purple-600">${results.rSquared.toFixed(4)}</div>
-                        <div class="text-sm text-gray-600">${(results.rSquared * 100).toFixed(1)}% の変動を説明</div>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4">傾き</h4>
-                        <div class="text-2xl font-bold text-orange-600">${results.slope.toFixed(4)}</div>
-                        <div class="text-sm text-gray-600">1単位増加あたりの変化</div>
-                    </div>
-                </div>
-            `;
-            break;
-            
-        case 'descriptive':
-            const stats = results.stats;
-            html = `
-                <div class="grid md:grid-cols-4 gap-4">
-                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
-                        <div class="text-2xl font-bold text-blue-600">${stats.mean.toFixed(2)}</div>
-                        <div class="text-sm text-gray-600">平均</div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
-                        <div class="text-2xl font-bold text-green-600">${stats.median.toFixed(2)}</div>
-                        <div class="text-sm text-gray-600">中央値</div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
-                        <div class="text-2xl font-bold text-purple-600">${stats.standardDeviation.toFixed(2)}</div>
-                        <div class="text-sm text-gray-600">標準偏差</div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
-                        <div class="text-2xl font-bold text-orange-600">${stats.range.toFixed(2)}</div>
-                        <div class="text-sm text-gray-600">範囲</div>
-                    </div>
-                </div>
-                <div class="mt-6 bg-white p-6 rounded-xl shadow-sm border">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-4">詳細統計</h4>
-                    <div class="grid md:grid-cols-2 gap-4 text-sm">
-                        <div>データ数: <span class="font-semibold">${stats.count}</span></div>
-                        <div>分散: <span class="font-semibold">${stats.variance.toFixed(4)}</span></div>
-                        <div>最小値: <span class="font-semibold">${stats.min.toFixed(2)}</span></div>
-                        <div>最大値: <span class="font-semibold">${stats.max.toFixed(2)}</span></div>
-                        <div>第1四分位数: <span class="font-semibold">${stats.q1.toFixed(2)}</span></div>
-                        <div>第3四分位数: <span class="font-semibold">${stats.q3.toFixed(2)}</span></div>
-                    </div>
-                </div>
-            `;
-            break;
-            
-        default:
-            html = '<div class="text-gray-600">分析結果を表示中...</div>';
+                    `;
+                }
+                break;
+                
+            case 'descriptive':
+                if (results.stats) {
+                    const stats = results.stats;
+                    html = `
+                        <div class="grid md:grid-cols-4 gap-4">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                                <div class="text-2xl font-bold text-blue-600">${stats.mean.toFixed(2)}</div>
+                                <div class="text-sm text-gray-600">平均</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                                <div class="text-2xl font-bold text-green-600">${stats.median.toFixed(2)}</div>
+                                <div class="text-sm text-gray-600">中央値</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                                <div class="text-2xl font-bold text-purple-600">${stats.standardDeviation.toFixed(2)}</div>
+                                <div class="text-sm text-gray-600">標準偏差</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                                <div class="text-2xl font-bold text-orange-600">${stats.range.toFixed(2)}</div>
+                                <div class="text-sm text-gray-600">範囲</div>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-white p-6 rounded-xl shadow-sm border">
+                            <h4 class="text-lg font-semibold text-gray-800 mb-4">詳細統計</h4>
+                            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                                <div>データ数: <span class="font-semibold">${stats.count}</span></div>
+                                <div>分散: <span class="font-semibold">${stats.variance.toFixed(4)}</span></div>
+                                <div>最小値: <span class="font-semibold">${stats.min.toFixed(2)}</span></div>
+                                <div>最大値: <span class="font-semibold">${stats.max.toFixed(2)}</span></div>
+                                <div>第1四分位数: <span class="font-semibold">${stats.q1.toFixed(2)}</span></div>
+                                <div>第3四分位数: <span class="font-semibold">${stats.q3.toFixed(2)}</span></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                break;
+                
+            default:
+                html = '<div class="text-gray-600">分析結果を表示中...</div>';
+        }
     }
     
     resultsContainer.innerHTML = html;
@@ -803,246 +875,25 @@ function goHome() {
     window.location.href = 'index.html';
 }
 
-// 分析実行
-async function performAnalysis(type, data, options) {
-    const { xColumn, yColumn } = options;
-    
-    switch (type) {
-        case 'correlation':
-            return calculateCorrelation(data, xColumn, yColumn);
-            
-        case 'regression':
-            return calculateRegression(data, xColumn, yColumn);
-            
-        case 'descriptive':
-            const targetCol = xColumn || yColumn;
-            return calculateDescriptiveStats(data, targetCol);
-            
-        case 'histogram':
-            const histCol = xColumn || yColumn;
-            return createHistogram(data, histCol);
-            
-        case 'controlChart':
-            const controlCol = xColumn || yColumn;
-            return createControlChart(data, controlCol);
-            
-        default:
-            throw new Error('サポートされていない分析タイプです');
+// ダウンロード機能
+function downloadPlot(format) {
+    const container = document.getElementById('plotContainer');
+    if (container && container.data) {
+        Plotly.downloadImage(container, {
+            format: format,
+            width: 1200,
+            height: 800,
+            filename: `analysis_result_${new Date().getTime()}`
+        });
+    } else {
+        showNotification('ダウンロードするグラフがありません。', 'warning');
     }
 }
 
-// 相関分析
-function calculateCorrelation(data, xColumn, yColumn) {
-    const xValues = data.map(row => row[xColumn]).filter(val => !isNaN(val));
-    const yValues = data.map(row => row[yColumn]).filter(val => !isNaN(val));
-    
-    if (xValues.length !== yValues.length || xValues.length < 2) {
-        throw new Error('有効なデータが不足しています');
-    }
-    
-    const pearsonR = ss.sampleCorrelation(xValues, yValues);
-    const spearmanR = calculateSpearmanCorrelation(xValues, yValues);
-    
-    // 散布図作成
-    const scatter = createScatterPlot(xValues, yValues, xColumn, yColumn, pearsonR);
-    
-    return {
-        pearsonR,
-        spearmanR,
-        plot: scatter,
-        interpretation: interpretCorrelation(pearsonR)
-    };
-}
-
-// Spearman相関係数計算
-function calculateSpearmanCorrelation(x, y) {
-    const rank = (arr) => {
-        const sorted = [...arr].sort((a, b) => a - b);
-        return arr.map(val => sorted.indexOf(val) + 1);
-    };
-    
-    const xRanks = rank(x);
-    const yRanks = rank(y);
-    
-    return ss.sampleCorrelation(xRanks, yRanks);
-}
-
-// 回帰分析
-function calculateRegression(data, xColumn, yColumn) {
-    const xValues = data.map(row => row[xColumn]).filter(val => !isNaN(val));
-    const yValues = data.map(row => row[yColumn]).filter(val => !isNaN(val));
-    
-    if (xValues.length !== yValues.length || xValues.length < 2) {
-        throw new Error('有効なデータが不足しています');
-    }
-    
-    const regression = ss.linearRegression(xValues.map((x, i) => [x, yValues[i]]));
-    const rSquared = ss.rSquared(xValues.map((x, i) => [x, yValues[i]]), regression);
-    
-    // 残差計算
-    const residuals = xValues.map((x, i) => {
-        const predicted = regression.m * x + regression.b;
-        return yValues[i] - predicted;
-    });
-    
-    // 散布図に回帰線を追加
-    const plot = createRegressionPlot(xValues, yValues, xColumn, yColumn, regression);
-    
-    return {
-        slope: regression.m,
-        intercept: regression.b,
-        rSquared: rSquared,
-        residuals: residuals,
-        plot: plot,
-        interpretation: interpretRegression(regression, rSquared)
-    };
-}
-
-// 記述統計
-function calculateDescriptiveStats(data, column) {
-    const values = data.map(row => row[column]).filter(val => !isNaN(val));
-    
-    if (values.length === 0) {
-        throw new Error('有効な数値データがありません');
-    }
-    
-    const stats = {
-        count: values.length,
-        mean: ss.mean(values),
-        median: ss.median(values),
-        mode: ss.mode(values),
-        standardDeviation: ss.standardDeviation(values),
-        variance: ss.variance(values),
-        min: ss.min(values),
-        max: ss.max(values),
-        range: ss.max(values) - ss.min(values),
-        q1: ss.quantile(values, 0.25),
-        q3: ss.quantile(values, 0.75)
-    };
-    
-    stats.iqr = stats.q3 - stats.q1;
-    
-    return {
-        stats: stats,
-        plot: createBoxPlot(values, column),
-        interpretation: interpretDescriptiveStats(stats)
-    };
-}
-
-// ヒストグラム作成
-function createHistogram(data, column) {
-    const values = data.map(row => row[column]).filter(val => !isNaN(val));
-    
-    if (values.length === 0) {
-        throw new Error('有効な数値データがありません');
-    }
-    
-    const plot = {
-        data: [{
-            x: values,
-            type: 'histogram',
-            name: column,
-            nbinsx: Math.min(30, Math.ceil(Math.sqrt(values.length))),
-            marker: {
-                color: 'lightblue',
-                line: {
-                    color: 'black',
-                    width: 1
-                }
-            }
-        }],
-        layout: {
-            title: `${column} のヒストグラム`,
-            xaxis: { title: column },
-            yaxis: { title: '度数' },
-            bargap: 0.1
-        }
-    };
-    
-    return {
-        plot: plot,
-        interpretation: interpretHistogram(values)
-    };
-}
-
-// 管理図作成
-function createControlChart(data, column) {
-    const values = data.map(row => row[column]).filter(val => !isNaN(val));
-    
-    if (values.length === 0) {
-        throw new Error('有効な数値データがありません');
-    }
-    
-    const mean = ss.mean(values);
-    const stdDev = ss.standardDeviation(values);
-    const ucl = mean + 3 * stdDev;
-    const lcl = mean - 3 * stdDev;
-    
-    // 異常点検出
-    const outliers = values.map((val, index) => ({
-        index: index,
-        value: val,
-        isOutlier: val > ucl || val < lcl
-    }));
-    
-    const plot = {
-        data: [
-            {
-                x: values.map((_, i) => i + 1),
-                y: values,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: column,
-                line: { color: 'blue' },
-                marker: { color: 'blue' }
-            },
-            {
-                x: [1, values.length],
-                y: [mean, mean],
-                type: 'scatter',
-                mode: 'lines',
-                name: '中心線 (平均)',
-                line: { color: 'green', dash: 'dash' }
-            },
-            {
-                x: [1, values.length],
-                y: [ucl, ucl],
-                type: 'scatter',
-                mode: 'lines',
-                name: 'UCL (+3σ)',
-                line: { color: 'red', dash: 'dash' }
-            },
-            {
-                x: [1, values.length],
-                y: [lcl, lcl],
-                type: 'scatter',
-                mode: 'lines',
-                name: 'LCL (-3σ)',
-                line: { color: 'red', dash: 'dash' }
-            }
-        ],
-        layout: {
-            title: `${column} の管理図`,
-            xaxis: { title: 'サンプル番号' },
-            yaxis: { title: column }
-        }
-    };
-    
-    return {
-        mean: mean,
-        stdDev: stdDev,
-        ucl: ucl,
-        lcl: lcl,
-        outliers: outliers.filter(o => o.isOutlier),
-        plot: plot,
-        interpretation: interpretControlChart(outliers.filter(o => o.isOutlier).length, values.length)
-    };
-}
-
-// 工程能力分析計算
+// 工程能力分析の実行
 function calculateProcessCapability() {
     if (!currentData) {
-        alert('まずデータを選択してください。');
+        showNotification('まずデータを選択してください。', 'warning');
         return;
     }
     
@@ -1051,318 +902,22 @@ function calculateProcessCapability() {
     const targetColumn = xColumn || yColumn;
     
     if (!targetColumn) {
-        alert('分析する列を選択してください。');
+        showNotification('分析する列を選択してください。', 'warning');
         return;
     }
     
     const usl = parseFloat(document.getElementById('uslInput').value);
     const lsl = parseFloat(document.getElementById('lslInput').value);
     
-    if (isNaN(usl) || isNaN(lsl)) {
-        alert('上限規格値（USL）と下限規格値（LSL）を入力してください。');
+    if (isNaN(usl) && isNaN(lsl)) {
+        showNotification('上限規格値または下限規格値を入力してください。', 'warning');
         return;
     }
     
-    if (usl <= lsl) {
-        alert('上限規格値は下限規格値より大きくしてください。');
-        return;
-    }
-    
-    const processedData = preprocessData(currentData, [targetColumn]);
-    const values = processedData.map(row => row[targetColumn]).filter(val => !isNaN(val));
-    
-    if (values.length === 0) {
-        alert('有効な数値データがありません。');
-        return;
-    }
-    
-    const mean = ss.mean(values);
-    const stdDev = ss.standardDeviation(values);
-    
-    // Cp, Cpk計算
-    const cp = (usl - lsl) / (6 * stdDev);
-    const cpkUpper = (usl - mean) / (3 * stdDev);
-    const cpkLower = (mean - lsl) / (3 * stdDev);
-    const cpk = Math.min(cpkUpper, cpkLower);
-    
-    // ヒストグラムと規格限界
-    const plot = {
-        data: [
-            {
-                x: values,
-                type: 'histogram',
-                name: targetColumn,
-                opacity: 0.7,
-                marker: { color: 'lightblue' }
-            }
-        ],
-        layout: {
-            title: `${targetColumn} の工程能力分析`,
-            xaxis: { title: targetColumn },
-            yaxis: { title: '度数' },
-            shapes: [
-                {
-                    type: 'line',
-                    x0: lsl, x1: lsl,
-                    y0: 0, y1: 1,
-                    yref: 'paper',
-                    line: { color: 'red', width: 2, dash: 'dash' }
-                },
-                {
-                    type: 'line',
-                    x0: usl, x1: usl,
-                    y0: 0, y1: 1,
-                    yref: 'paper',
-                    line: { color: 'red', width: 2, dash: 'dash' }
-                }
-            ],
-            annotations: [
-                {
-                    x: lsl,
-                    y: 0.9,
-                    yref: 'paper',
-                    text: `LSL: ${lsl}`,
-                    showarrow: false,
-                    font: { color: 'red' }
-                },
-                {
-                    x: usl,
-                    y: 0.9,
-                    yref: 'paper',
-                    text: `USL: ${usl}`,
-                    showarrow: false,
-                    font: { color: 'red' }
-                }
-            ]
-        }
-    };
-    
-    const results = {
-        cp: cp,
-        cpk: cpk,
-        mean: mean,
-        stdDev: stdDev,
-        usl: usl,
-        lsl: lsl,
-        plot: plot,
-        interpretation: interpretProcessCapability(cp, cpk)
-    };
-    
-    displayResults('processCapability', results);
-    document.getElementById('processCapabilitySection').classList.add('hidden');
+    // runAnalysis関数を使用して工程能力分析を実行
+    runAnalysis('processCapability');
 }
 
-// 散布図作成
-function createScatterPlot(xValues, yValues, xColumn, yColumn, correlation) {
-    return {
-        data: [{
-            x: xValues,
-            y: yValues,
-            mode: 'markers',
-            type: 'scatter',
-            name: 'データポイント',
-            marker: {
-                color: 'rgba(102, 126, 234, 0.6)',
-                size: 8,
-                line: {
-                    color: 'rgba(102, 126, 234, 1)',
-                    width: 1
-                }
-            }
-        }],
-        layout: {
-            title: `${xColumn} vs ${yColumn} の散布図 (r = ${correlation.toFixed(3)})`,
-            xaxis: { title: xColumn },
-            yaxis: { title: yColumn },
-            showlegend: false,
-            hovermode: 'closest'
-        }
-    };
-}
-
-// 回帰プロット作成
-function createRegressionPlot(xValues, yValues, xColumn, yColumn, regression) {
-    const minX = Math.min(...xValues);
-    const maxX = Math.max(...xValues);
-    const lineX = [minX, maxX];
-    const lineY = lineX.map(x => regression.m * x + regression.b);
-    
-    return {
-        data: [
-            {
-                x: xValues,
-                y: yValues,
-                mode: 'markers',
-                type: 'scatter',
-                name: 'データポイント',
-                marker: {
-                    color: 'rgba(102, 126, 234, 0.6)',
-                    size: 8
-                }
-            },
-            {
-                x: lineX,
-                y: lineY,
-                mode: 'lines',
-                type: 'scatter',
-                name: '回帰直線',
-                line: {
-                    color: 'red',
-                    width: 2
-                }
-            }
-        ],
-        layout: {
-            title: `${xColumn} vs ${yColumn} の回帰分析`,
-            xaxis: { title: xColumn },
-            yaxis: { title: yColumn },
-            showlegend: true
-        }
-    };
-}
-
-// ボックスプロット作成
-function createBoxPlot(values, column) {
-    return {
-        data: [{
-            y: values,
-            type: 'box',
-            name: column,
-            boxpoints: 'outliers',
-            marker: {
-                color: 'rgba(102, 126, 234, 0.6)'
-            }
-        }],
-        layout: {
-            title: `${column} のボックスプロット`,
-            yaxis: { title: column }
-        }
-    };
-}
-
-// 相関解釈
-function interpretCorrelation(r) {
-    const absR = Math.abs(r);
-    let strength = '';
-    let direction = r > 0 ? '正の' : '負の';
-    
-    if (absR >= 0.8) strength = '非常に強い';
-    else if (absR >= 0.6) strength = '強い';
-    else if (absR >= 0.4) strength = '中程度の';
-    else if (absR >= 0.2) strength = '弱い';
-    else strength = 'ほとんどない';
-    
-    return `
-        <p><strong>相関の強さ:</strong> ${strength}${direction}相関 (r = ${r.toFixed(3)})</p>
-        <p><strong>解釈:</strong> 
-        ${absR >= 0.6 ? 
-            '変数間に明確な関係があります。' : 
-            absR >= 0.3 ? 
-                '変数間に一定の関係が見られます。' : 
-                '変数間の関係は弱いか、ほとんどありません。'
-        }
-        </p>
-        <p><strong>注意:</strong> 相関関係は因果関係を意味しません。</p>
-    `;
-}
-
-// 回帰解釈
-function interpretRegression(regression, rSquared) {
-    return `
-        <p><strong>回帰式:</strong> y = ${regression.m.toFixed(4)}x + ${regression.b.toFixed(4)}</p>
-        <p><strong>決定係数 (R²):</strong> ${rSquared.toFixed(4)} (${(rSquared * 100).toFixed(1)}%)</p>
-        <p><strong>解釈:</strong> 
-        ${rSquared >= 0.7 ? 
-            'モデルはデータを非常によく説明しています。' : 
-            rSquared >= 0.5 ? 
-                'モデルはデータをある程度説明しています。' : 
-                'モデルの説明力は限定的です。'
-        }
-        </p>
-        <p><strong>傾き:</strong> xが1単位増加すると、yは約${regression.m.toFixed(4)}単位${regression.m > 0 ? '増加' : '減少'}します。</p>
-    `;
-}
-
-// 記述統計解釈
-function interpretDescriptiveStats(stats) {
-    const cv = (stats.standardDeviation / stats.mean) * 100; // 変動係数
-    
-    return `
-        <p><strong>中心傾向:</strong> 平均値 ${stats.mean.toFixed(2)}、中央値 ${stats.median.toFixed(2)}</p>
-        <p><strong>ばらつき:</strong> 標準偏差 ${stats.standardDeviation.toFixed(2)}、変動係数 ${cv.toFixed(1)}%</p>
-        <p><strong>分布の特徴:</strong> 
-        ${Math.abs(stats.mean - stats.median) / stats.standardDeviation < 0.5 ? 
-            'データは比較的対称的に分布しています。' : 
-            'データに偏りがある可能性があります。'
-        }
-        </p>
-        <p><strong>データの範囲:</strong> ${stats.min.toFixed(2)} から ${stats.max.toFixed(2)} (範囲: ${stats.range.toFixed(2)})</p>
-    `;
-}
-
-// ヒストグラム解釈
-function interpretHistogram(values) {
-    const mean = values.reduce((a, b) => a + b) / values.length;
-    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
-    const skewness = values.reduce((a, b) => a + Math.pow((b - mean) / Math.sqrt(variance), 3), 0) / values.length;
-    
-    return `
-        <p><strong>分布の形状:</strong> 
-        ${Math.abs(skewness) < 0.5 ? 
-            '比較的対称的な分布' : 
-            skewness > 0 ? 
-                '右に偏った分布（正の歪度）' : 
-                '左に偏った分布（負の歪度）'
-        }
-        </p>
-        <p><strong>データ数:</strong> ${values.length} 個</p>
-        <p><strong>歪度:</strong> ${skewness.toFixed(3)}</p>
-    `;
-}
-
-// 工程能力分析解釈
-function interpretProcessCapability(cp, cpk) {
-    return `
-        <p><strong>工程能力指数 (Cp):</strong> ${cp.toFixed(3)}</p>
-        <p><strong>工程能力指数 (Cpk):</strong> ${cpk.toFixed(3)}</p>
-        <p><strong>解釈:</strong> 
-        ${cp >= 1.33 ? 
-            '工程能力は非常に高いです。' : 
-            cp >= 1.0 ? 
-                '工程能力は高いです。' : 
-                '工程能力は低いです。'
-        }
-        </p>
-        <p><strong>注意:</strong> Cpkが1.0未満の場合、工程能力は低い可能性があります。</p>
-    `;
-}
-
-// グラフダウンロード機能
-function downloadPlot(format) {
-    const plotContainer = document.getElementById('plotContainer');
-    
-    if (!plotContainer || !plotContainer.data) {
-        showNotification('ダウンロードするグラフがありません', 'warning');
-        return;
-    }
-    
-    const filename = `analysis_plot_${new Date().toISOString().slice(0, 10)}`;
-    
-    if (format === 'png') {
-        Plotly.downloadImage(plotContainer, {
-            format: 'png',
-            width: 1200,
-            height: 800,
-            filename: filename
-        });
-    } else if (format === 'svg') {
-        Plotly.downloadImage(plotContainer, {
-            format: 'svg',
-            width: 1200,
-            height: 800,
-            filename: filename
-        });
-    }
-    
-    showNotification(`グラフを${format.toUpperCase()}形式でダウンロードしました`, 'success');
-} 
+// 可視化関数と解釈関数は別ファイルで定義されています
+// visualization.js, interpretation.js を参照
+// visualization.js, interpretation.js を参照 

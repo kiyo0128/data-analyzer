@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分析手法選択ガイド - DataAnalyzer Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Mermaid for flowcharts -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-gradient {
+            background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        .analysis-card {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .analysis-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+        
+        .step-card {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .step-card:hover {
+            transform: translateX(8px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pattern-card {
+            background: linear-gradient(145deg, #ffffff, #f1f5f9);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .pattern-card:hover {
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+        
+        .mermaid {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <span class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                        DataAnalyzer Pro
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-lg font-medium text-gray-700">分析手法選択ガイド</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-gray-600 hover:text-purple-600 transition-colors">
+                        <i class="fas fa-home mr-2"></i>ホームに戻る
+                    </a>
+                    <a href="analyzer.html" class="btn-primary px-6 py-2 rounded-full text-white font-semibold">
+                        <i class="fas fa-chart-bar mr-2"></i>分析を開始
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Hero Section -->
+        <div class="hero-gradient rounded-3xl p-8 mb-8 text-white text-center">
+            <h1 class="text-4xl font-bold mb-4">
+                <i class="fas fa-route mr-3"></i>
+                データ分析手法選択ガイド
+            </h1>
+            <p class="text-xl opacity-90 max-w-3xl mx-auto">
+                あなたのデータと目的に最適な分析手法を見つけましょう。<br>
+                フロー図に従って、効果的な分析アプローチを選択できます。
+            </p>
+        </div>
+
+        <!-- Quick Start Flow -->
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
+                <i class="fas fa-play-circle mr-3 text-purple-600"></i>
+                クイックスタート フロー
+            </h2>
+            
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <div class="mermaid">
+                    flowchart TD
+                        A[データを確認] --> B{データの種類は？}
+                        B -->|数値データ 2列| C{関係性を調べたい？}
+                        B -->|数値データ 1列| D{分布を調べたい？}
+                        B -->|品質データ| E{工程管理？}
+                        B -->|異常値が心配| F{変数の数は？}
+                        
+                        C -->|Yes| G[相関分析]
+                        C -->|予測したい| H[回帰分析]
+                        
+                        D -->|Yes| I[ヒストグラム]
+                        D -->|統計値が欲しい| J[記述統計]
+                        
+                        E -->|能力評価| K[工程能力分析]
+                        E -->|異常検出| L[管理図]
+                        
+                        F -->|1変数| M[異常値検出<br/>IQR・Z-score法]
+                        F -->|2変数以上| N[マハラノビス距離]
+                        
+                        G --> O[分析実行]
+                        H --> O
+                        I --> O
+                        J --> O
+                        K --> O
+                        L --> O
+                        M --> O
+                        N --> O
+                        
+                        style A fill:#e1f5fe
+                        style B fill:#fff3e0
+                        style C fill:#fff3e0
+                        style D fill:#fff3e0
+                        style E fill:#fff3e0
+                        style F fill:#fff3e0
+                        style G fill:#e8f5e8
+                        style H fill:#e8f5e8
+                        style I fill:#e8f5e8
+                        style J fill:#e8f5e8
+                        style K fill:#e8f5e8
+                        style L fill:#e8f5e8
+                        style M fill:#ffe8e8
+                        style N fill:#ffe8e8
+                        style O fill:#f3e5f5
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Patterns -->
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <i class="fas fa-puzzle-piece mr-3 text-green-600"></i>
+                分析パターン別ガイド
+            </h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Pattern 1: Relationship Analysis -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-link text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">関係性の分析</h3>
+                    <p class="text-gray-600 mb-4">2つの変数間の関係を調べたい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">2つの数値列を選択</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">相関分析で関係の強さを確認</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">予測が必要なら回帰分析</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-800"><strong>例：</strong> 温度と収率、時間と品質など</p>
+                    </div>
+                </div>
+
+                <!-- Pattern 2: Distribution Analysis -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-chart-bar text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">分布の分析</h3>
+                    <p class="text-gray-600 mb-4">1つの変数の分布や特性を調べたい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">1つの数値列を選択</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">記述統計で基本統計量を確認</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">ヒストグラムで分布の形を確認</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-green-50 rounded-lg">
+                        <p class="text-sm text-green-800"><strong>例：</strong> 製品重量、測定値のばらつきなど</p>
+                    </div>
+                </div>
+
+                <!-- Pattern 3: Quality Control -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-industry text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">品質管理</h3>
+                    <p class="text-gray-600 mb-4">製造工程の品質を管理・評価したい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">品質特性データを準備</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">工程能力分析でCp/Cpkを評価</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">管理図で異常点を検出</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-red-50 rounded-lg">
+                        <p class="text-sm text-red-800"><strong>例：</strong> 寸法精度、強度試験結果など</p>
+                    </div>
+                </div>
+
+                <!-- Pattern 4: Exploratory Analysis -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-search text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">探索的分析</h3>
+                    <p class="text-gray-600 mb-4">データの特徴を幅広く調べたい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">記述統計で全体像を把握</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">ヒストグラムで分布を確認</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">相関分析で変数間の関係を調査</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-purple-50 rounded-lg">
+                        <p class="text-sm text-purple-800"><strong>例：</strong> 新しいデータセットの初期調査</p>
+                    </div>
+                </div>
+
+                <!-- Pattern 5: Predictive Analysis -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-crystal-ball text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">予測分析</h3>
+                    <p class="text-gray-600 mb-4">将来の値を予測したい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">説明変数と目的変数を選択</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">相関分析で関係性を確認</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">回帰分析で予測モデルを構築</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-orange-50 rounded-lg">
+                        <p class="text-sm text-orange-800"><strong>例：</strong> 売上予測、品質予測など</p>
+                    </div>
+                </div>
+
+                <!-- Pattern 6: Anomaly Detection -->
+                <div class="pattern-card rounded-2xl p-6">
+                    <div class="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-exclamation-triangle text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">異常値検出</h3>
+                    <p class="text-gray-600 mb-4">データの異常値や外れ値を検出したい場合</p>
+                    
+                    <div class="space-y-3">
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-indigo-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">1</span>
+                                <span class="text-sm">変数の数を確認（1変数 or 2変数以上）</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-indigo-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">2</span>
+                                <span class="text-sm">1変数：IQR・Z-score法を適用</span>
+                            </div>
+                        </div>
+                        <div class="step-card p-3 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-indigo-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">3</span>
+                                <span class="text-sm">2変数以上：マハラノビス距離を適用</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-indigo-50 rounded-lg">
+                        <p class="text-sm text-indigo-800"><strong>例：</strong> 測定異常、品質異常、設備異常など</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Methods Reference -->
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <i class="fas fa-book mr-3 text-purple-600"></i>
+                分析手法リファレンス
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Correlation Analysis -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-chart-line text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">相関分析</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">2つの変数間の関係の強さと方向を調べる</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 変数間の関係性を知りたい時</div>
+                        <div><strong>結果の見方：</strong> -1〜1の値、0に近いほど関係なし</div>
+                        <div><strong>注意点：</strong> 相関≠因果関係</div>
+                    </div>
+                </div>
+
+                <!-- Regression Analysis -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-chart-area text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">回帰分析</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">一方の変数から他方の変数を予測する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 予測モデルを作りたい時</div>
+                        <div><strong>結果の見方：</strong> R²が1に近いほど予測精度が高い</div>
+                        <div><strong>注意点：</strong> 外挿には注意が必要</div>
+                    </div>
+                </div>
+
+                <!-- Descriptive Statistics -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-calculator text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">記述統計</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">データの基本的な統計量を計算する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> データの概要を把握したい時</div>
+                        <div><strong>結果の見方：</strong> 平均、中央値、標準偏差など</div>
+                        <div><strong>注意点：</strong> 外れ値の影響を考慮</div>
+                    </div>
+                </div>
+
+                <!-- Histogram -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-chart-bar text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">ヒストグラム</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">データの分布の形状を視覚的に確認する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 分布の形を知りたい時</div>
+                        <div><strong>結果の見方：</strong> 正規分布、偏り、外れ値など</div>
+                        <div><strong>注意点：</strong> ビン数の設定が重要</div>
+                    </div>
+                </div>
+
+                <!-- Process Capability -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-industry text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">工程能力分析</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">工程が規格を満たす能力を評価する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 品質管理、工程評価</div>
+                        <div><strong>結果の見方：</strong> Cp≥1.33で良好、Cpk≥1.33で安定</div>
+                        <div><strong>注意点：</strong> 正確な規格値が必要</div>
+                    </div>
+                </div>
+
+                <!-- Control Chart -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-chart-area text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">管理図</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">工程の安定性と異常点を検出する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 工程監視、異常検出</div>
+                        <div><strong>結果の見方：</strong> 管理限界外の点は異常</div>
+                        <div><strong>注意点：</strong> 継続的な監視が重要</div>
+                    </div>
+                </div>
+
+                <!-- Mahalanobis Distance -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-crosshairs text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">マハラノビス距離</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">多変量データの異常値を検出する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> 多変量異常検出、品質管理</div>
+                        <div><strong>結果の見方：</strong> 95%信頼楕円外が異常値</div>
+                        <div><strong>注意点：</strong> 2変数以上が必要、相関を考慮</div>
+                    </div>
+                </div>
+
+                <!-- Outlier Detection -->
+                <div class="analysis-card rounded-2xl p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center mr-4">
+                            <i class="fas fa-exclamation-triangle text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900">異常値検出</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">IQR法・Z-score法で異常値を特定する</p>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>適用場面：</strong> データクリーニング、品質管理</div>
+                        <div><strong>結果の見方：</strong> 複数手法で総合判定</div>
+                        <div><strong>注意点：</strong> 手法により結果が異なる場合あり</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <i class="fas fa-lightbulb mr-3 text-yellow-600"></i>
+                分析のコツとベストプラクティス
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="card-gradient rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-eye text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-3">データを見る前に</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 分析の目的を明確にする</li>
+                        <li>• データの収集方法を確認</li>
+                        <li>• 欠損値や異常値をチェック</li>
+                        <li>• サンプルサイズを確認</li>
+                    </ul>
+                </div>
+                
+                <div class="card-gradient rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-3">分析の進め方</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 記述統計から始める</li>
+                        <li>• 可視化で全体像を把握</li>
+                        <li>• 段階的に詳細分析へ</li>
+                        <li>• 結果の妥当性を検証</li>
+                    </ul>
+                </div>
+                
+                <div class="card-gradient rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                        <i class="fas fa-exclamation-triangle text-white text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-3">注意すべきポイント</h3>
+                    <ul class="text-sm text-gray-600 space-y-2">
+                        <li>• 相関と因果関係は別物</li>
+                        <li>• 外れ値の影響を考慮</li>
+                        <li>• サンプルサイズの制約</li>
+                        <li>• 結果の解釈は慎重に</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="text-center">
+            <div class="hero-gradient rounded-3xl p-8 text-white">
+                <h2 class="text-2xl font-bold mb-4">準備はできましたか？</h2>
+                <p class="text-lg opacity-90 mb-6">
+                    ガイドを参考に、あなたのデータに最適な分析を始めましょう
+                </p>
+                <div class="flex justify-center space-x-4">
+                    <a href="analyzer.html" class="bg-white text-purple-600 px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-chart-bar mr-2"></i>分析を開始
+                    </a>
+                    <a href="index.html" class="border-2 border-white text-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-purple-600 transition-colors">
+                        <i class="fas fa-home mr-2"></i>ホームに戻る
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>

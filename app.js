@@ -228,57 +228,126 @@ function handleFileSelection(e) {
         currentDataKey = fileKey;
         currentData = uploadedData[fileKey].data;
         
-        displayDataPreview(currentData);
+        // データ情報のみ表示（プレビューは表示しない）
+        displayDataInfo(currentData);
         populateColumnSelectors(currentData);
         
+        // データプレビューコントロールを表示
+        document.getElementById('dataPreviewControls').classList.remove('hidden');
         document.getElementById('columnSelectionSection').classList.remove('hidden');
+        
+        // データプレビューは非表示状態にリセット
+        hideDataPreview();
     }
 }
 
-// データプレビュー表示
+// データ情報のみ表示（軽量版）
+function displayDataInfo(data) {
+    const dataInfo = document.getElementById('dataInfo');
+    
+    if (!data || data.length === 0) {
+        dataInfo.innerHTML = '<span class="text-gray-500">データがありません</span>';
+        return;
+    }
+    
+    const columns = Object.keys(data[0]);
+    const numericColumns = columns.filter(col => 
+        data.some(row => typeof row[col] === 'number')
+    ).length;
+    
+    dataInfo.innerHTML = `
+        <strong>📊 ${data.length.toLocaleString()} 行</strong> × 
+        <strong>${columns.length} 列</strong>
+        <span class="text-gray-500 ml-2">(数値列: ${numericColumns})</span>
+    `;
+}
+
+// データプレビュー表示（オンデマンド）
 function displayDataPreview(data) {
     const previewContainer = document.getElementById('dataPreview');
-    const dataInfo = document.getElementById('dataInfo');
     
     if (!data || data.length === 0) {
         previewContainer.innerHTML = '<p class="text-gray-500 p-4">データがありません</p>';
         return;
     }
     
-    // 最初の1000行のみ表示
+    // パフォーマンス向上のため最初の1000行のみ表示
     const previewData = data.slice(0, 1000);
     const columns = Object.keys(data[0]);
     
-    // テーブル作成
-    let html = '<table class="min-w-full border-collapse border border-gray-300">';
-    
-    // ヘッダー
-    html += '<thead><tr class="bg-gray-100">';
-    columns.forEach(col => {
-        html += `<th class="border border-gray-300 px-4 py-2 text-left font-medium">${col}</th>`;
-    });
-    html += '</tr></thead>';
-    
-    // データ行
-    html += '<tbody>';
-    previewData.forEach((row, index) => {
-        html += `<tr class="${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}">`;
-        columns.forEach(col => {
-            const value = row[col] !== undefined ? row[col] : '';
-            html += `<td class="border border-gray-300 px-4 py-2">${value}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    previewContainer.innerHTML = html;
-    
-    // データ情報
-    dataInfo.innerHTML = `
-        <strong>データ情報:</strong> 
-        ${data.length} 行, ${columns.length} 列
-        ${data.length > 1000 ? ' (最初の1000行を表示)' : ''}
+    // ローディング表示
+    previewContainer.innerHTML = `
+        <div class="flex items-center justify-center p-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mr-3"></div>
+            <span class="text-gray-600">データを読み込み中...</span>
+        </div>
     `;
+    
+    // 少し遅延させてUIの応答性を保つ
+    setTimeout(() => {
+        // テーブル作成
+        let html = '<div class="overflow-x-auto"><table class="min-w-full border-collapse border border-gray-300">';
+        
+        // ヘッダー
+        html += '<thead><tr class="bg-gradient-to-r from-purple-100 to-blue-100">';
+        columns.forEach(col => {
+            html += `<th class="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-700 sticky top-0 bg-gray-100">${col}</th>`;
+        });
+        html += '</tr></thead>';
+        
+        // データ行
+        html += '<tbody>';
+        previewData.forEach((row, index) => {
+            html += `<tr class="${index % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'} transition-colors">`;
+            columns.forEach(col => {
+                const value = row[col] !== undefined ? row[col] : '';
+                const displayValue = typeof value === 'number' ? 
+                    value.toLocaleString() : 
+                    String(value).length > 50 ? String(value).substring(0, 50) + '...' : value;
+                html += `<td class="border border-gray-300 px-4 py-2 text-sm">${displayValue}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+        
+        previewContainer.innerHTML = html;
+    }, 100);
+}
+
+// データプレビューの表示/非表示切り替え
+function toggleDataPreview() {
+    const container = document.getElementById('dataPreviewContainer');
+    const showBtn = document.getElementById('showDataBtn');
+    const hideBtn = document.getElementById('hideDataBtn');
+    
+    if (container.classList.contains('hidden')) {
+        // データを表示
+        container.classList.remove('hidden');
+        showBtn.classList.add('hidden');
+        hideBtn.classList.remove('hidden');
+        
+        // データが未表示の場合は読み込み
+        if (currentData && document.getElementById('dataPreview').innerHTML === '') {
+            displayDataPreview(currentData);
+        }
+    } else {
+        // データを非表示
+        hideDataPreview();
+    }
+}
+
+// データプレビューを非表示にする
+function hideDataPreview() {
+    const container = document.getElementById('dataPreviewContainer');
+    const showBtn = document.getElementById('showDataBtn');
+    const hideBtn = document.getElementById('hideDataBtn');
+    
+    container.classList.add('hidden');
+    showBtn.classList.remove('hidden');
+    hideBtn.classList.add('hidden');
+    
+    // メモリ節約のためプレビューをクリア
+    document.getElementById('dataPreview').innerHTML = '';
 }
 
 // 列セレクター更新

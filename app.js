@@ -378,6 +378,12 @@ function populateColumnSelectors(data) {
             ySelect.appendChild(optionY);
         }
     });
+    
+    // イベントリスナーを追加（重複を避けるため一度削除）
+    xSelect.removeEventListener('change', updateAnalysisOptions);
+    ySelect.removeEventListener('change', updateAnalysisOptions);
+    xSelect.addEventListener('change', updateAnalysisOptions);
+    ySelect.addEventListener('change', updateAnalysisOptions);
 }
 
 // 分析オプション更新
@@ -385,8 +391,19 @@ function updateAnalysisOptions() {
     const xColumn = document.getElementById('xColumnSelect').value;
     const yColumn = document.getElementById('yColumnSelect').value;
     
+    // 列が選択されたら分析セクションを表示
     if (xColumn || yColumn) {
-        document.getElementById('startAnalysisSection').classList.remove('hidden');
+        document.getElementById('analysisSelectionSection').classList.remove('hidden');
+        
+        // スムーズにスクロール
+        setTimeout(() => {
+            document.getElementById('analysisSelectionSection').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }, 300);
+    } else {
+        document.getElementById('analysisSelectionSection').classList.add('hidden');
     }
 }
 
@@ -421,66 +438,170 @@ function startAnalysis() {
 
 // 分析実行
 async function runAnalysis(analysisType) {
+    console.log('分析開始:', analysisType);
+    
     if (!currentData) {
-        alert('まずデータを選択してください。');
+        showNotification('まずデータを選択してください。', 'warning');
         return;
     }
     
     const xColumn = document.getElementById('xColumnSelect').value;
     const yColumn = document.getElementById('yColumnSelect').value;
     
-    // 分析タイプに応じた前処理とバリデーション
-    let processedData;
+    // ローディング表示
+    showLoading(true);
     
     try {
+        // 分析タイプに応じた前処理とバリデーション
+        let processedData;
+        let targetColumn;
+        
         switch (analysisType) {
             case 'correlation':
             case 'regression':
                 if (!xColumn || !yColumn) {
-                    alert('X軸とY軸の両方を選択してください。');
+                    showNotification('X軸とY軸の両方を選択してください。', 'warning');
                     return;
                 }
-                processedData = preprocessData(currentData, [xColumn, yColumn]);
+                processedData = await preprocessDataAsync(currentData, [xColumn, yColumn]);
                 break;
                 
             case 'descriptive':
             case 'histogram':
                 if (!xColumn && !yColumn) {
-                    alert('分析する列を選択してください。');
+                    showNotification('分析する列を選択してください。', 'warning');
                     return;
                 }
-                const targetColumn = xColumn || yColumn;
-                processedData = preprocessData(currentData, [targetColumn]);
+                targetColumn = xColumn || yColumn;
+                processedData = await preprocessDataAsync(currentData, [targetColumn]);
                 break;
                 
             case 'processCapability':
-                document.getElementById('processCapabilitySection').classList.remove('hidden');
+                showProcessCapabilityForm();
                 return;
                 
             case 'controlChart':
                 if (!xColumn && !yColumn) {
-                    alert('分析する列を選択してください。');
+                    showNotification('分析する列を選択してください。', 'warning');
                     return;
                 }
-                const controlColumn = xColumn || yColumn;
-                processedData = preprocessData(currentData, [controlColumn]);
+                targetColumn = xColumn || yColumn;
+                processedData = await preprocessDataAsync(currentData, [targetColumn]);
                 break;
                 
             default:
-                alert('サポートされていない分析です。');
+                showNotification('サポートされていない分析です。', 'error');
                 return;
         }
         
+        // データサイズチェック
+        if (processedData.length > 50000) {
+            const proceed = confirm(`データサイズが大きいです (${processedData.length.toLocaleString()} 行)。\n処理に時間がかかる可能性がありますが、続行しますか？`);
+            if (!proceed) {
+                return;
+            }
+        }
+        
         // 分析実行
-        const results = await performAnalysis(analysisType, processedData, { xColumn, yColumn });
+        const results = await performAnalysis(analysisType, processedData, { 
+            xColumn, 
+            yColumn, 
+            targetColumn: targetColumn || xColumn 
+        });
         
         // 結果表示
-        displayResults(analysisType, results);
+        await displayResults(analysisType, results);
+        
+        showNotification('分析が完了しました！', 'success');
         
     } catch (error) {
         console.error('分析エラー:', error);
-        alert('分析中にエラーが発生しました: ' + error.message);
+        showNotification(`分析中にエラーが発生しました: ${error.message}`, 'error');
+    } finally {
+        showLoading(false);
     }
+}
+
+// 通知表示
+function showNotification(message, type = 'info') {
+    // 既存の通知を削除
+    const existingNotification = document.querySelector('.notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = `notification fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full`;
+    
+    const colors = {
+        success: 'bg-green-500 text-white',
+        warning: 'bg-yellow-500 text-white',
+        error: 'bg-red-500 text-white',
+        info: 'bg-blue-500 text-white'
+    };
+    
+    const icons = {
+        success: 'fas fa-check-circle',
+        warning: 'fas fa-exclamation-triangle',
+        error: 'fas fa-times-circle',
+        info: 'fas fa-info-circle'
+    };
+    
+    notification.className += ` ${colors[type]}`;
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <i class="${icons[type]} mr-3"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // アニメーション
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // 自動削除
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// ローディング表示制御
+function showLoading(show) {
+    const loadingSection = document.getElementById('loadingSection');
+    if (show) {
+        loadingSection.classList.remove('hidden');
+        loadingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+        loadingSection.classList.add('hidden');
+    }
+}
+
+// 工程能力分析フォーム表示
+function showProcessCapabilityForm() {
+    document.getElementById('processCapabilityForm').classList.remove('hidden');
+    document.getElementById('processCapabilityForm').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+    });
+}
+
+// 工程能力分析フォーム非表示
+function hideProcessCapabilityForm() {
+    document.getElementById('processCapabilityForm').classList.add('hidden');
+}
+
+// 非同期データ前処理（パフォーマンス改善）
+async function preprocessDataAsync(data, columns) {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const result = preprocessData(data, columns);
+            resolve(result);
+        }, 10); // UIをブロックしないよう少し遅延
+    });
 }
 
 // データ前処理
@@ -536,6 +657,29 @@ function preprocessData(data, columns) {
     }
     
     return filtered;
+}
+
+// 結果表示
+async function displayResults(analysisType, results) {
+    // 可視化セクションを表示
+    document.getElementById('visualizationSection').classList.remove('hidden');
+    document.getElementById('resultsSection').classList.remove('hidden');
+    
+    // 結果をスクロール表示
+    setTimeout(() => {
+        document.getElementById('visualizationSection').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }, 300);
+    
+    // 結果の詳細表示は既存の関数を使用
+    console.log('分析結果:', results);
+}
+
+// ホームに戻る
+function goHome() {
+    window.location.href = 'index.html';
 }
 
 // 分析実行

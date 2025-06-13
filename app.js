@@ -665,6 +665,24 @@ async function displayResults(analysisType, results) {
     document.getElementById('visualizationSection').classList.remove('hidden');
     document.getElementById('resultsSection').classList.remove('hidden');
     
+    // グラフを表示
+    if (results.plot) {
+        const plotContainer = document.getElementById('plotContainer');
+        Plotly.newPlot(plotContainer, results.plot.data, results.plot.layout, {
+            responsive: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+        });
+    }
+    
+    // 分析結果を表示
+    displayAnalysisResults(analysisType, results);
+    
+    // 解釈を表示
+    if (results.interpretation) {
+        displayInterpretation(results.interpretation);
+    }
+    
     // 結果をスクロール表示
     setTimeout(() => {
         document.getElementById('visualizationSection').scrollIntoView({
@@ -672,9 +690,112 @@ async function displayResults(analysisType, results) {
             block: 'start'
         });
     }, 300);
+}
+
+// 分析結果の詳細表示
+function displayAnalysisResults(analysisType, results) {
+    const resultsContainer = document.getElementById('analysisResults');
+    let html = '';
     
-    // 結果の詳細表示は既存の関数を使用
-    console.log('分析結果:', results);
+    switch (analysisType) {
+        case 'correlation':
+            html = `
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-chart-line mr-2 text-blue-600"></i>
+                            Pearson相関係数
+                        </h4>
+                        <div class="text-3xl font-bold text-blue-600 mb-2">${results.pearsonR.toFixed(4)}</div>
+                        <div class="text-sm text-gray-600">
+                            ${Math.abs(results.pearsonR) > 0.7 ? '強い' : Math.abs(results.pearsonR) > 0.3 ? '中程度の' : '弱い'}
+                            ${results.pearsonR > 0 ? '正の' : '負の'}相関
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-sort-numeric-up mr-2 text-green-600"></i>
+                            Spearman相関係数
+                        </h4>
+                        <div class="text-3xl font-bold text-green-600 mb-2">${results.spearmanR.toFixed(4)}</div>
+                        <div class="text-sm text-gray-600">順位相関（非線形関係も検出）</div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'regression':
+            html = `
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">回帰式</h4>
+                        <div class="text-lg font-mono bg-gray-100 p-3 rounded">
+                            y = ${results.slope.toFixed(4)}x + ${results.intercept.toFixed(4)}
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">決定係数 (R²)</h4>
+                        <div class="text-3xl font-bold text-purple-600">${results.rSquared.toFixed(4)}</div>
+                        <div class="text-sm text-gray-600">${(results.rSquared * 100).toFixed(1)}% の変動を説明</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">傾き</h4>
+                        <div class="text-2xl font-bold text-orange-600">${results.slope.toFixed(4)}</div>
+                        <div class="text-sm text-gray-600">1単位増加あたりの変化</div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'descriptive':
+            const stats = results.stats;
+            html = `
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                        <div class="text-2xl font-bold text-blue-600">${stats.mean.toFixed(2)}</div>
+                        <div class="text-sm text-gray-600">平均</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                        <div class="text-2xl font-bold text-green-600">${stats.median.toFixed(2)}</div>
+                        <div class="text-sm text-gray-600">中央値</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                        <div class="text-2xl font-bold text-purple-600">${stats.standardDeviation.toFixed(2)}</div>
+                        <div class="text-sm text-gray-600">標準偏差</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                        <div class="text-2xl font-bold text-orange-600">${stats.range.toFixed(2)}</div>
+                        <div class="text-sm text-gray-600">範囲</div>
+                    </div>
+                </div>
+                <div class="mt-6 bg-white p-6 rounded-xl shadow-sm border">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-4">詳細統計</h4>
+                    <div class="grid md:grid-cols-2 gap-4 text-sm">
+                        <div>データ数: <span class="font-semibold">${stats.count}</span></div>
+                        <div>分散: <span class="font-semibold">${stats.variance.toFixed(4)}</span></div>
+                        <div>最小値: <span class="font-semibold">${stats.min.toFixed(2)}</span></div>
+                        <div>最大値: <span class="font-semibold">${stats.max.toFixed(2)}</span></div>
+                        <div>第1四分位数: <span class="font-semibold">${stats.q1.toFixed(2)}</span></div>
+                        <div>第3四分位数: <span class="font-semibold">${stats.q3.toFixed(2)}</span></div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        default:
+            html = '<div class="text-gray-600">分析結果を表示中...</div>';
+    }
+    
+    resultsContainer.innerHTML = html;
+}
+
+// 解釈表示
+function displayInterpretation(interpretation) {
+    const interpretationContainer = document.getElementById('interpretationResults');
+    const interpretationText = document.getElementById('interpretationText');
+    
+    interpretationText.innerHTML = interpretation;
+    interpretationContainer.classList.remove('hidden');
 }
 
 // ホームに戻る
@@ -1029,4 +1150,219 @@ function calculateProcessCapability() {
     
     displayResults('processCapability', results);
     document.getElementById('processCapabilitySection').classList.add('hidden');
+}
+
+// 散布図作成
+function createScatterPlot(xValues, yValues, xColumn, yColumn, correlation) {
+    return {
+        data: [{
+            x: xValues,
+            y: yValues,
+            mode: 'markers',
+            type: 'scatter',
+            name: 'データポイント',
+            marker: {
+                color: 'rgba(102, 126, 234, 0.6)',
+                size: 8,
+                line: {
+                    color: 'rgba(102, 126, 234, 1)',
+                    width: 1
+                }
+            }
+        }],
+        layout: {
+            title: `${xColumn} vs ${yColumn} の散布図 (r = ${correlation.toFixed(3)})`,
+            xaxis: { title: xColumn },
+            yaxis: { title: yColumn },
+            showlegend: false,
+            hovermode: 'closest'
+        }
+    };
+}
+
+// 回帰プロット作成
+function createRegressionPlot(xValues, yValues, xColumn, yColumn, regression) {
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+    const lineX = [minX, maxX];
+    const lineY = lineX.map(x => regression.m * x + regression.b);
+    
+    return {
+        data: [
+            {
+                x: xValues,
+                y: yValues,
+                mode: 'markers',
+                type: 'scatter',
+                name: 'データポイント',
+                marker: {
+                    color: 'rgba(102, 126, 234, 0.6)',
+                    size: 8
+                }
+            },
+            {
+                x: lineX,
+                y: lineY,
+                mode: 'lines',
+                type: 'scatter',
+                name: '回帰直線',
+                line: {
+                    color: 'red',
+                    width: 2
+                }
+            }
+        ],
+        layout: {
+            title: `${xColumn} vs ${yColumn} の回帰分析`,
+            xaxis: { title: xColumn },
+            yaxis: { title: yColumn },
+            showlegend: true
+        }
+    };
+}
+
+// ボックスプロット作成
+function createBoxPlot(values, column) {
+    return {
+        data: [{
+            y: values,
+            type: 'box',
+            name: column,
+            boxpoints: 'outliers',
+            marker: {
+                color: 'rgba(102, 126, 234, 0.6)'
+            }
+        }],
+        layout: {
+            title: `${column} のボックスプロット`,
+            yaxis: { title: column }
+        }
+    };
+}
+
+// 相関解釈
+function interpretCorrelation(r) {
+    const absR = Math.abs(r);
+    let strength = '';
+    let direction = r > 0 ? '正の' : '負の';
+    
+    if (absR >= 0.8) strength = '非常に強い';
+    else if (absR >= 0.6) strength = '強い';
+    else if (absR >= 0.4) strength = '中程度の';
+    else if (absR >= 0.2) strength = '弱い';
+    else strength = 'ほとんどない';
+    
+    return `
+        <p><strong>相関の強さ:</strong> ${strength}${direction}相関 (r = ${r.toFixed(3)})</p>
+        <p><strong>解釈:</strong> 
+        ${absR >= 0.6 ? 
+            '変数間に明確な関係があります。' : 
+            absR >= 0.3 ? 
+                '変数間に一定の関係が見られます。' : 
+                '変数間の関係は弱いか、ほとんどありません。'
+        }
+        </p>
+        <p><strong>注意:</strong> 相関関係は因果関係を意味しません。</p>
+    `;
+}
+
+// 回帰解釈
+function interpretRegression(regression, rSquared) {
+    return `
+        <p><strong>回帰式:</strong> y = ${regression.m.toFixed(4)}x + ${regression.b.toFixed(4)}</p>
+        <p><strong>決定係数 (R²):</strong> ${rSquared.toFixed(4)} (${(rSquared * 100).toFixed(1)}%)</p>
+        <p><strong>解釈:</strong> 
+        ${rSquared >= 0.7 ? 
+            'モデルはデータを非常によく説明しています。' : 
+            rSquared >= 0.5 ? 
+                'モデルはデータをある程度説明しています。' : 
+                'モデルの説明力は限定的です。'
+        }
+        </p>
+        <p><strong>傾き:</strong> xが1単位増加すると、yは約${regression.m.toFixed(4)}単位${regression.m > 0 ? '増加' : '減少'}します。</p>
+    `;
+}
+
+// 記述統計解釈
+function interpretDescriptiveStats(stats) {
+    const cv = (stats.standardDeviation / stats.mean) * 100; // 変動係数
+    
+    return `
+        <p><strong>中心傾向:</strong> 平均値 ${stats.mean.toFixed(2)}、中央値 ${stats.median.toFixed(2)}</p>
+        <p><strong>ばらつき:</strong> 標準偏差 ${stats.standardDeviation.toFixed(2)}、変動係数 ${cv.toFixed(1)}%</p>
+        <p><strong>分布の特徴:</strong> 
+        ${Math.abs(stats.mean - stats.median) / stats.standardDeviation < 0.5 ? 
+            'データは比較的対称的に分布しています。' : 
+            'データに偏りがある可能性があります。'
+        }
+        </p>
+        <p><strong>データの範囲:</strong> ${stats.min.toFixed(2)} から ${stats.max.toFixed(2)} (範囲: ${stats.range.toFixed(2)})</p>
+    `;
+}
+
+// ヒストグラム解釈
+function interpretHistogram(values) {
+    const mean = values.reduce((a, b) => a + b) / values.length;
+    const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+    const skewness = values.reduce((a, b) => a + Math.pow((b - mean) / Math.sqrt(variance), 3), 0) / values.length;
+    
+    return `
+        <p><strong>分布の形状:</strong> 
+        ${Math.abs(skewness) < 0.5 ? 
+            '比較的対称的な分布' : 
+            skewness > 0 ? 
+                '右に偏った分布（正の歪度）' : 
+                '左に偏った分布（負の歪度）'
+        }
+        </p>
+        <p><strong>データ数:</strong> ${values.length} 個</p>
+        <p><strong>歪度:</strong> ${skewness.toFixed(3)}</p>
+    `;
+}
+
+// 工程能力分析解釈
+function interpretProcessCapability(cp, cpk) {
+    return `
+        <p><strong>工程能力指数 (Cp):</strong> ${cp.toFixed(3)}</p>
+        <p><strong>工程能力指数 (Cpk):</strong> ${cpk.toFixed(3)}</p>
+        <p><strong>解釈:</strong> 
+        ${cp >= 1.33 ? 
+            '工程能力は非常に高いです。' : 
+            cp >= 1.0 ? 
+                '工程能力は高いです。' : 
+                '工程能力は低いです。'
+        }
+        </p>
+        <p><strong>注意:</strong> Cpkが1.0未満の場合、工程能力は低い可能性があります。</p>
+    `;
+}
+
+// グラフダウンロード機能
+function downloadPlot(format) {
+    const plotContainer = document.getElementById('plotContainer');
+    
+    if (!plotContainer || !plotContainer.data) {
+        showNotification('ダウンロードするグラフがありません', 'warning');
+        return;
+    }
+    
+    const filename = `analysis_plot_${new Date().toISOString().slice(0, 10)}`;
+    
+    if (format === 'png') {
+        Plotly.downloadImage(plotContainer, {
+            format: 'png',
+            width: 1200,
+            height: 800,
+            filename: filename
+        });
+    } else if (format === 'svg') {
+        Plotly.downloadImage(plotContainer, {
+            format: 'svg',
+            width: 1200,
+            height: 800,
+            filename: filename
+        });
+    }
+    
+    showNotification(`グラフを${format.toUpperCase()}形式でダウンロードしました`, 'success');
 } 

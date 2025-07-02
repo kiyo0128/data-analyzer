@@ -877,30 +877,51 @@ function goHome() {
 
 // 複数カラム分析ページへ移動
 function goToMultiColumnAnalysis() {
-    const selectedFile = document.getElementById('fileSelector').value;
+    console.log('複数カラム分析ページへ移動開始');
     
-    if (!selectedFile) {
-        alert('まずファイルを選択してください。');
+    const selectedFile = document.getElementById('fileSelector');
+    
+    if (!selectedFile || !selectedFile.value) {
+        showNotification('まずファイルを選択してください。', 'warning');
         return;
     }
     
-    if (!currentData) {
-        alert('データが読み込まれていません。');
+    if (!currentData || currentData.length === 0) {
+        showNotification('データが読み込まれていません。', 'error');
         return;
     }
     
-    // 分析用データをlocalStorageに保存
-    const analysisData = {
-        selectedFile: selectedFile,
-        fileName: uploadedData[selectedFile].name,
-        data: currentData,
-        timestamp: new Date().toISOString()
-    };
+    // 数値カラムの確認
+    const numericColumns = Object.keys(currentData[0]).filter(col => 
+        currentData.some(row => typeof row[col] === 'number' && !isNaN(row[col]))
+    );
     
-    localStorage.setItem('multiColumnAnalysisData', JSON.stringify(analysisData));
+    if (numericColumns.length < 2) {
+        showNotification('複数カラム分析には最低2つの数値カラムが必要です。', 'warning');
+        return;
+    }
     
-    // 複数カラム分析ページに移動
-    window.location.href = 'multi-column-analysis.html';
+    try {
+        // 分析用データをlocalStorageに保存
+        const analysisData = {
+            selectedFile: selectedFile.value,
+            fileName: uploadedData[selectedFile.value].name,
+            data: currentData,
+            timestamp: new Date().toISOString(),
+            numericColumns: numericColumns
+        };
+        
+        localStorage.setItem('multiColumnAnalysisData', JSON.stringify(analysisData));
+        
+        console.log('データ保存完了、ページ移動中...');
+        
+        // 複数カラム分析ページに移動
+        window.location.href = 'multi-column-analysis.html';
+        
+    } catch (error) {
+        console.error('データ保存エラー:', error);
+        showNotification('データの保存に失敗しました。', 'error');
+    }
 }
 
 // ダウンロード機能
@@ -948,4 +969,24 @@ function calculateProcessCapability() {
 
 // 可視化関数と解釈関数は別ファイルで定義されています
 // visualization.js, interpretation.js を参照
-// visualization.js, interpretation.js を参照 
+
+// デバッグ用関数
+function debugButtonClick() {
+    console.log('デバッグ: ボタンクリック機能テスト');
+    console.log('currentData:', currentData ? 'データあり' : 'データなし');
+    console.log('uploadedData:', Object.keys(uploadedData).length, '個のファイル');
+    console.log('fileSelector値:', document.getElementById('fileSelector')?.value || 'セレクターなし');
+    
+    const fileSelector = document.getElementById('fileSelector');
+    if (fileSelector && fileSelector.value && currentData) {
+        console.log('複数カラム分析の実行準備完了');
+        return true;
+    } else {
+        console.log('複数カラム分析の実行準備未完了');
+        return false;
+    }
+}
+
+// グローバルスコープに関数を公開（デバッグ用）
+window.debugButtonClick = debugButtonClick;
+window.goToMultiColumnAnalysis = goToMultiColumnAnalysis; 

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>複数カラム分析 - DataAnalyzer Pro</title>
+    
+    <!-- CDN Libraries -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.6s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-gradient {
+            background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .column-checkbox {
+            transition: all 0.3s ease;
+        }
+        
+        .column-checkbox:checked + .column-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+        }
+        
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <span class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                        DataAnalyzer Pro
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-lg font-medium text-gray-700">複数カラム分析</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="goBack()" class="text-gray-600 hover:text-purple-600 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>戻る
+                    </button>
+                    <button onclick="goHome()" class="text-gray-600 hover:text-purple-600 transition-colors">
+                        <i class="fas fa-home mr-2"></i>ホーム
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Welcome Section -->
+        <div class="mb-8">
+            <div class="card-gradient rounded-3xl p-6 shadow-lg text-center">
+                <h1 class="text-3xl font-bold mb-4 text-gray-800">
+                    <i class="fas fa-th mr-3 text-purple-600"></i>
+                    複数カラム相関分析
+                </h1>
+                <p class="text-lg text-gray-600" id="datasetInfo">
+                    読み込み中...
+                </p>
+            </div>
+        </div>
+
+        <!-- Column Selection Section -->
+        <div class="mb-8">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-columns mr-3 text-green-600"></i>
+                    分析対象カラムを選択
+                </h2>
+                <p class="text-gray-600 mb-6">数値カラムから分析したいものを選択してください（最小2個、推奨3-8個）</p>
+                
+                <div id="columnSelection" class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                    <!-- カラム選択チェックボックスがここに動的に生成される -->
+                </div>
+                
+                <div class="flex flex-wrap gap-4 items-center">
+                    <button onclick="selectAllColumns()" class="btn-secondary px-6 py-3 rounded-full text-white font-semibold hover:scale-105 transition-transform">
+                        <i class="fas fa-check-double mr-2"></i>
+                        全て選択
+                    </button>
+                    <button onclick="clearAllColumns()" class="bg-gray-500 hover:bg-gray-600 px-6 py-3 rounded-full text-white font-semibold transition-colors">
+                        <i class="fas fa-times mr-2"></i>
+                        選択解除
+                    </button>
+                    <div id="selectedCount" class="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
+                        選択済み: 0個
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Options Section -->
+        <div id="analysisOptionsSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-cogs mr-3 text-orange-600"></i>
+                    分析オプション
+                </h2>
+                
+                <div class="grid md:grid-cols-2 gap-8 mb-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">相関計算方法</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input type="radio" name="correlationMethod" value="pearson" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300">
+                                <span class="ml-3 text-gray-700 font-medium">Pearson（線形関係）</span>
+                            </label>
+                            <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input type="radio" name="correlationMethod" value="spearman" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300">
+                                <span class="ml-3 text-gray-700 font-medium">Spearman（順位相関）</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">欠損値処理</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input type="radio" name="missingValueMethod" value="pairwise" checked class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300">
+                                <span class="ml-3 text-gray-700 font-medium">ペアワイズ削除</span>
+                            </label>
+                            <label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                                <input type="radio" name="missingValueMethod" value="listwise" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300">
+                                <span class="ml-3 text-gray-700 font-medium">リストワイズ削除</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="runMultiColumnAnalysis()" class="btn-primary px-8 py-4 rounded-full text-white font-bold hover:scale-105 transition-transform shadow-lg">
+                    <i class="fas fa-play mr-2"></i>
+                    分析実行
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Section -->
+        <div id="loadingSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p class="text-lg text-gray-700">分析を実行中...</p>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="mb-8 hidden animate-fade-in">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-chart-pie mr-3 text-purple-600"></i>
+                    分析結果
+                </h2>
+                
+                <!-- Tab Navigation -->
+                <div class="flex space-x-2 mb-6 bg-gray-100 p-2 rounded-xl">
+                    <button onclick="showTab('heatmap')" class="tab-button active flex-1 py-3 px-6 rounded-lg font-semibold transition-all">
+                        <i class="fas fa-fire mr-2"></i>
+                        相関ヒートマップ
+                    </button>
+                    <button onclick="showTab('scatter')" class="tab-button flex-1 py-3 px-6 rounded-lg font-semibold transition-all">
+                        <i class="fas fa-th mr-2"></i>
+                        散布図行列
+                    </button>
+                    <button onclick="showTab('table')" class="tab-button flex-1 py-3 px-6 rounded-lg font-semibold transition-all">
+                        <i class="fas fa-table mr-2"></i>
+                        相関係数表
+                    </button>
+                </div>
+                
+                <!-- Tab Contents -->
+                <div id="heatmapTab" class="tab-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">相関ヒートマップ</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPlot('heatmap', 'png')" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>PNG
+                            </button>
+                            <button onclick="downloadPlot('heatmap', 'svg')" class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>SVG
+                            </button>
+                        </div>
+                    </div>
+                    <div id="heatmapContainer" class="bg-white rounded-xl shadow-inner p-4" style="min-height: 500px;"></div>
+                </div>
+                
+                <div id="scatterTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">散布図行列</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPlot('scatter', 'png')" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>PNG
+                            </button>
+                            <button onclick="downloadPlot('scatter', 'svg')" class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>SVG
+                            </button>
+                        </div>
+                    </div>
+                    <div id="scatterContainer" class="bg-white rounded-xl shadow-inner p-4" style="min-height: 600px;"></div>
+                </div>
+                
+                <div id="tableTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">相関係数表</h3>
+                        <button onclick="downloadCorrelationTable()" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                            <i class="fas fa-download mr-1"></i>CSV
+                        </button>
+                    </div>
+                    <div id="correlationTableContainer" class="bg-white rounded-xl shadow-inner p-4 overflow-auto"></div>
+                </div>
+                
+                <!-- Summary Statistics -->
+                <div class="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-inner">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
+                            最強の正の相関
+                        </h4>
+                        <div id="strongestPositive" class="text-gray-700"></div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-inner">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-chart-bar mr-2 text-red-600"></i>
+                            最強の負の相関
+                        </h4>
+                        <div id="strongestNegative" class="text-gray-700"></div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-inner">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-green-600"></i>
+                            統計サマリー
+                        </h4>
+                        <div id="correlationSummary" class="text-gray-700"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Steps Section -->
+        <div id="nextStepsSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-arrow-right mr-3 text-purple-600"></i>
+                    次のステップ
+                </h2>
+                <p class="text-gray-600 mb-6">特定のカラムペアをより詳しく分析したい場合は、下のボタンから個別分析に進めます。</p>
+                <button onclick="goToDetailedAnalysis()" class="btn-primary px-8 py-4 rounded-full text-white font-bold hover:scale-105 transition-transform shadow-lg">
+                    <i class="fas fa-search-plus mr-2"></i>
+                    詳細な個別分析へ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="multi-column-analysis.js"></script>
+</body>
+</html>

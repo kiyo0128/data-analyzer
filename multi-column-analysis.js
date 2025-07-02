@@ -15,9 +15,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 分析データの読み込み
 function loadAnalysisData() {
+    console.log('分析データの読み込み開始');
+    
     const dataStr = localStorage.getItem('multiColumnAnalysisData');
     
     if (!dataStr) {
+        console.error('分析データが見つかりません');
         alert('分析データが見つかりません。分析ページに戻ります。');
         window.location.href = 'analyzer.html';
         return;
@@ -25,17 +28,26 @@ function loadAnalysisData() {
     
     try {
         analysisData = JSON.parse(dataStr);
+        console.log('分析データ読み込み成功:', analysisData);
+        
+        if (!analysisData.data || !Array.isArray(analysisData.data) || analysisData.data.length === 0) {
+            throw new Error('無効なデータ形式です');
+        }
         
         // データセット情報を表示
         const datasetInfo = document.getElementById('datasetInfo');
-        datasetInfo.textContent = `データセット: ${analysisData.fileName} (${analysisData.data.length.toLocaleString()} 行)`;
+        if (datasetInfo) {
+            datasetInfo.textContent = `データセット: ${analysisData.fileName} (${analysisData.data.length.toLocaleString()} 行)`;
+        }
         
         // カラム選択UIを初期化
         initializeColumnSelection();
         
+        console.log('初期化完了');
+        
     } catch (error) {
         console.error('データ読み込みエラー:', error);
-        alert('データの読み込みに失敗しました。');
+        alert(`データの読み込みに失敗しました: ${error.message}`);
         window.location.href = 'analyzer.html';
     }
 }
@@ -52,19 +64,50 @@ function initializeEventListeners() {
 
 // カラム選択UIの初期化
 function initializeColumnSelection() {
+    console.log('カラム選択UI初期化開始');
+    
     if (!analysisData || !analysisData.data || analysisData.data.length === 0) {
+        console.error('分析データが無効です');
         return;
     }
     
     const columns = Object.keys(analysisData.data[0]);
-    const numericColumns = columns.filter(col => 
-        analysisData.data.some(row => typeof row[col] === 'number' && !isNaN(row[col]))
-    );
+    console.log('全カラム:', columns);
+    
+    // 数値カラムの検出を改善
+    const numericColumns = columns.filter(col => {
+        // サンプルデータで数値かどうかチェック
+        const sampleSize = Math.min(10, analysisData.data.length);
+        let numericCount = 0;
+        
+        for (let i = 0; i < sampleSize; i++) {
+            const value = analysisData.data[i][col];
+            if (value !== null && value !== undefined && value !== '' && !isNaN(Number(value))) {
+                numericCount++;
+            }
+        }
+        
+        // サンプルの70%以上が数値なら数値カラムとみなす
+        return numericCount / sampleSize >= 0.7;
+    });
+    
+    console.log('数値カラム:', numericColumns);
+    
+    if (numericColumns.length < 2) {
+        alert('複数カラム分析には最低2つの数値カラムが必要です。');
+        window.location.href = 'analyzer.html';
+        return;
+    }
     
     const columnSelection = document.getElementById('columnSelection');
+    if (!columnSelection) {
+        console.error('columnSelection要素が見つかりません');
+        return;
+    }
+    
     columnSelection.innerHTML = '';
     
-    numericColumns.forEach(column => {
+    numericColumns.forEach((column, index) => {
         const div = document.createElement('div');
         div.className = 'flex items-center';
         
@@ -74,12 +117,26 @@ function initializeColumnSelection() {
         checkbox.value = column;
         checkbox.className = 'column-checkbox h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded';
         
+        // デフォルトで最初の3-4個のカラムを選択
+        if (index < Math.min(4, numericColumns.length)) {
+            checkbox.checked = true;
+        }
+        
         const label = document.createElement('label');
         label.htmlFor = `col_${column}`;
         label.className = 'column-label ml-3 p-3 rounded-lg cursor-pointer transition-all flex-1 border border-gray-200 hover:border-purple-300';
+        
+        // データサンプルの統計を表示
+        const values = analysisData.data.map(row => Number(row[column])).filter(v => !isNaN(v));
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        
         label.innerHTML = `
             <div class="font-medium text-gray-800">${column}</div>
-            <div class="text-sm text-gray-500">数値データ</div>
+            <div class="text-sm text-gray-500">
+                範囲: ${min.toFixed(2)} - ${max.toFixed(2)}, 平均: ${mean.toFixed(2)}
+            </div>
         `;
         
         div.appendChild(checkbox);
@@ -88,6 +145,7 @@ function initializeColumnSelection() {
     });
     
     updateSelectedColumns();
+    console.log('カラム選択UI初期化完了');
 }
 
 // 選択されたカラムの更新
@@ -124,9 +182,18 @@ function clearAllColumns() {
 
 // 複数カラム分析の実行
 async function runMultiColumnAnalysis() {
+    console.log('複数カラム分析実行開始', selectedColumns);
+    
     if (selectedColumns.length < 2) {
         alert('最低2つのカラムを選択してください。');
         return;
+    }
+    
+    if (selectedColumns.length > 10) {
+        const proceed = confirm(`選択されたカラムが多すぎます (${selectedColumns.length}個)。\n処理に時間がかかる可能性がありますが、続行しますか？\n推奨は3-8個です。`);
+        if (!proceed) {
+            return;
+        }
     }
     
     // ローディング表示
@@ -134,24 +201,43 @@ async function runMultiColumnAnalysis() {
     
     try {
         // 相関計算方法と欠損値処理方法を取得
-        const correlationMethod = document.querySelector('input[name="correlationMethod"]:checked').value;
-        const missingValueMethod = document.querySelector('input[name="missingValueMethod"]:checked').value;
+        const correlationMethodElement = document.querySelector('input[name="correlationMethod"]:checked');
+        const missingValueMethodElement = document.querySelector('input[name="missingValueMethod"]:checked');
+        
+        const correlationMethod = correlationMethodElement ? correlationMethodElement.value : 'pearson';
+        const missingValueMethod = missingValueMethodElement ? missingValueMethodElement.value : 'pairwise';
+        
+        console.log('分析パラメータ:', { correlationMethod, missingValueMethod });
         
         // データの前処理
+        console.log('データ前処理開始');
         const processedData = preprocessDataForCorrelation(analysisData.data, selectedColumns, missingValueMethod);
+        console.log('前処理済みデータ行数:', processedData.length);
+        
+        if (processedData.length < 2) {
+            throw new Error('前処理後のデータが不足しています。欠損値処理設定を変更してください。');
+        }
         
         // 相関行列の計算
+        console.log('相関行列計算開始');
         correlationMatrix = calculateCorrelationMatrix(processedData, selectedColumns, correlationMethod);
+        console.log('相関行列計算完了');
         
         // 結果の表示
+        console.log('結果表示開始');
         await displayMultiColumnResults();
         
         // 次のステップセクションを表示
-        document.getElementById('nextStepsSection').classList.remove('hidden');
+        const nextStepsSection = document.getElementById('nextStepsSection');
+        if (nextStepsSection) {
+            nextStepsSection.classList.remove('hidden');
+        }
+        
+        console.log('複数カラム分析完了');
         
     } catch (error) {
         console.error('分析エラー:', error);
-        alert('分析処理中にエラーが発生しました。');
+        alert(`分析処理中にエラーが発生しました: ${error.message}`);
     } finally {
         showLoading(false);
     }
@@ -655,14 +741,29 @@ function goHome() {
 }
 
 function goToDetailedAnalysis() {
-    // 選択されたカラムとデータを保存して個別分析ページへ
-    const detailedAnalysisData = {
-        ...analysisData,
-        selectedColumns: selectedColumns,
-        correlationMatrix: correlationMatrix,
-        timestamp: new Date().toISOString()
-    };
+    console.log('詳細分析ページへ移動開始');
     
-    localStorage.setItem('detailedAnalysisData', JSON.stringify(detailedAnalysisData));
-    window.location.href = 'detailed-analysis.html';
+    if (!analysisData || !selectedColumns || selectedColumns.length === 0) {
+        alert('まず複数カラム分析を実行してください。');
+        return;
+    }
+    
+    try {
+        // 選択されたカラムとデータを保存して個別分析ページへ
+        const detailedAnalysisData = {
+            ...analysisData,
+            selectedColumns: selectedColumns,
+            correlationMatrix: correlationMatrix,
+            timestamp: new Date().toISOString()
+        };
+        
+        localStorage.setItem('detailedAnalysisData', JSON.stringify(detailedAnalysisData));
+        console.log('詳細分析データ保存完了');
+        
+        window.location.href = 'detailed-analysis.html';
+        
+    } catch (error) {
+        console.error('詳細分析ページ移動エラー:', error);
+        alert('詳細分析ページへの移動に失敗しました。');
+    }
 }

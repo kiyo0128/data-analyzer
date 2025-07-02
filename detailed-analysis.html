@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>詳細分析 - DataAnalyzer Pro</title>
+    
+    <!-- CDN Libraries -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.6s ease-out',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-gradient {
+            background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .analysis-card {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .analysis-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+        
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <span class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                        DataAnalyzer Pro
+                    </span>
+                    <span class="text-gray-400">|</span>
+                    <span class="text-lg font-medium text-gray-700">詳細分析</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="goBack()" class="text-gray-600 hover:text-purple-600 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>戻る
+                    </button>
+                    <button onclick="goHome()" class="text-gray-600 hover:text-purple-600 transition-colors">
+                        <i class="fas fa-home mr-2"></i>ホーム
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8">
+        <!-- Welcome Section -->
+        <div class="mb-8">
+            <div class="card-gradient rounded-3xl p-6 shadow-lg text-center">
+                <h1 class="text-3xl font-bold mb-4 text-gray-800">
+                    <i class="fas fa-search-plus mr-3 text-purple-600"></i>
+                    詳細分析
+                </h1>
+                <p class="text-lg text-gray-600" id="datasetInfo">
+                    読み込み中...
+                </p>
+            </div>
+        </div>
+
+        <!-- Column Pair Selection Section -->
+        <div class="mb-8">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-exchange-alt mr-3 text-green-600"></i>
+                    分析対象のカラムペアを選択
+                </h2>
+                
+                <div class="grid md:grid-cols-2 gap-8 mb-6">
+                    <div>
+                        <label for="xColumnSelect" class="block text-sm font-semibold text-gray-700 mb-3">
+                            <i class="fas fa-arrow-right mr-2 text-purple-600"></i>X軸 (独立変数):
+                        </label>
+                        <select id="xColumnSelect" class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white">
+                            <option value="">カラムを選択してください</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="yColumnSelect" class="block text-sm font-semibold text-gray-700 mb-3">
+                            <i class="fas fa-arrow-up mr-2 text-blue-600"></i>Y軸 (従属変数):
+                        </label>
+                        <select id="yColumnSelect" class="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white">
+                            <option value="">カラムを選択してください</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="correlationInfo" class="mb-6 p-4 bg-blue-50 rounded-xl hidden">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                        <span class="text-blue-800 font-medium">選択されたペアの相関係数: </span>
+                        <span id="correlationValue" class="text-blue-900 font-bold text-lg ml-2"></span>
+                    </div>
+                </div>
+                
+                <button onclick="runDetailedAnalysis()" id="analyzeButton" class="btn-primary px-8 py-4 rounded-full text-white font-bold hover:scale-105 transition-transform shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-play mr-2"></i>
+                    詳細分析実行
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Section -->
+        <div id="loadingSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p class="text-lg text-gray-700">詳細分析を実行中...</p>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="mb-8 hidden animate-fade-in">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-chart-pie mr-3 text-purple-600"></i>
+                    分析結果
+                </h2>
+                
+                <!-- Tab Navigation -->
+                <div class="flex space-x-2 mb-6 bg-gray-100 p-2 rounded-xl flex-wrap">
+                    <button onclick="showTab('scatter')" class="tab-button active flex-1 min-w-0 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                        <i class="fas fa-circle mr-1"></i>
+                        散布図
+                    </button>
+                    <button onclick="showTab('regression')" class="tab-button flex-1 min-w-0 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                        <i class="fas fa-chart-line mr-1"></i>
+                        回帰分析
+                    </button>
+                    <button onclick="showTab('residuals')" class="tab-button flex-1 min-w-0 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                        <i class="fas fa-chart-area mr-1"></i>
+                        残差プロット
+                    </button>
+                    <button onclick="showTab('statistics')" class="tab-button flex-1 min-w-0 py-3 px-4 rounded-lg font-semibold transition-all text-sm">
+                        <i class="fas fa-calculator mr-1"></i>
+                        統計量
+                    </button>
+                </div>
+                
+                <!-- Tab Contents -->
+                <div id="scatterTab" class="tab-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">散布図と回帰直線</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPlot('scatter', 'png')" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>PNG
+                            </button>
+                            <button onclick="downloadPlot('scatter', 'svg')" class="btn-secondary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>SVG
+                            </button>
+                        </div>
+                    </div>
+                    <div id="scatterContainer" class="bg-white rounded-xl shadow-inner p-4" style="min-height: 500px;"></div>
+                </div>
+                
+                <div id="regressionTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">回帰分析詳細</h3>
+                        <button onclick="downloadRegressionResults()" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                            <i class="fas fa-download mr-1"></i>結果をダウンロード
+                        </button>
+                    </div>
+                    <div id="regressionContainer" class="bg-white rounded-xl shadow-inner p-6"></div>
+                </div>
+                
+                <div id="residualsTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">残差分析</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPlot('residuals', 'png')" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                                <i class="fas fa-download mr-1"></i>PNG
+                            </button>
+                        </div>
+                    </div>
+                    <div id="residualsContainer" class="bg-white rounded-xl shadow-inner p-4" style="min-height: 500px;"></div>
+                </div>
+                
+                <div id="statisticsTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800">統計量・検定結果</h3>
+                        <button onclick="downloadStatistics()" class="btn-primary px-4 py-2 rounded-lg text-white text-sm font-semibold">
+                            <i class="fas fa-download mr-1"></i>CSV
+                        </button>
+                    </div>
+                    <div id="statisticsContainer" class="bg-white rounded-xl shadow-inner p-6"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interpretation Section -->
+        <div id="interpretationSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-lightbulb mr-3 text-yellow-600"></i>
+                    AI による結果の解釈
+                </h2>
+                <div id="interpretationContent" class="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border-l-4 border-yellow-500">
+                    <div class="text-gray-700" id="interpretationText">
+                        解釈を生成中...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Options Section -->
+        <div id="analysisOptionsSection" class="mb-8 hidden">
+            <div class="card-gradient rounded-3xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+                    <i class="fas fa-cogs mr-3 text-orange-600"></i>
+                    追加分析オプション
+                </h2>
+                
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="analysis-card rounded-2xl p-6 cursor-pointer border-2 border-blue-200 hover:border-blue-400" onclick="runOutlierDetection()">
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">異常値検出</h3>
+                        <p class="text-gray-600 text-sm">選択されたペアの異常値を検出・可視化</p>
+                    </div>
+                    
+                    <div class="analysis-card rounded-2xl p-6 cursor-pointer border-2 border-green-200 hover:border-green-400" onclick="runNormalityTest()">
+                        <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-bell-curve text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">正規性検定</h3>
+                        <p class="text-gray-600 text-sm">データの正規性をShapiro-Wilk検定で確認</p>
+                    </div>
+                    
+                    <div class="analysis-card rounded-2xl p-6 cursor-pointer border-2 border-purple-200 hover:border-purple-400" onclick="runBootstrapAnalysis()">
+                        <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-sync-alt text-white text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">ブートストラップ</h3>
+                        <p class="text-gray-600 text-sm">相関係数の信頼区間をブートストラップで推定</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="detailed-analysis.js"></script>
+</body>
+</html>

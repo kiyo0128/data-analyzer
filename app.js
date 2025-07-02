@@ -875,6 +875,34 @@ function goHome() {
     window.location.href = 'index.html';
 }
 
+// 複数カラム分析ページへ移動
+function goToMultiColumnAnalysis() {
+    const selectedFile = document.getElementById('fileSelector').value;
+    
+    if (!selectedFile) {
+        alert('まずファイルを選択してください。');
+        return;
+    }
+    
+    if (!currentData) {
+        alert('データが読み込まれていません。');
+        return;
+    }
+    
+    // 分析用データをlocalStorageに保存
+    const analysisData = {
+        selectedFile: selectedFile,
+        fileName: uploadedData[selectedFile].name,
+        data: currentData,
+        timestamp: new Date().toISOString()
+    };
+    
+    localStorage.setItem('multiColumnAnalysisData', JSON.stringify(analysisData));
+    
+    // 複数カラム分析ページに移動
+    window.location.href = 'multi-column-analysis.html';
+}
+
 // ダウンロード機能
 function downloadPlot(format) {
     const container = document.getElementById('plotContainer');

@@ -251,9 +251,9 @@ function handleFileSelection(e) {
         displayDataInfo(currentData);
         populateColumnSelectors(currentData);
         
-        // データプレビューコントロールを表示
+        // データプレビューコントロールとクイック分析セクションを表示
         document.getElementById('dataPreviewControls').classList.remove('hidden');
-        document.getElementById('columnSelectionSection').classList.remove('hidden');
+        document.getElementById('quickAnalysisSection').classList.remove('hidden');
         
         // データプレビューは非表示状態にリセット
         hideDataPreview();
@@ -901,6 +901,26 @@ function goToMultiColumnAnalysis() {
     
     // 複数カラム分析ページに移動
     window.location.href = 'multi-column-analysis.html';
+}
+
+// 個別カラム分析のカラム選択セクションを表示
+function showColumnSelection() {
+    if (!currentData) {
+        alert('まずファイルを選択してください。');
+        return;
+    }
+    
+    // カラム選択セクションと分析選択セクションを表示
+    document.getElementById('columnSelectionSection').classList.remove('hidden');
+    document.getElementById('analysisSelectionSection').classList.remove('hidden');
+    
+    // スムーズにスクロール
+    setTimeout(() => {
+        document.getElementById('columnSelectionSection').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }, 300);
 }
 
 // ダウンロード機能

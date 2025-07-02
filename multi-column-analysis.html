@@ -94,6 +94,30 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
+        
+        /* カラム選択スクロールエリアのスタイル */
+        .column-scroll-area {
+            scrollbar-width: thin;
+            scrollbar-color: #667eea #f1f5f9;
+        }
+        
+        .column-scroll-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .column-scroll-area::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        .column-scroll-area::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+        
+        .column-scroll-area::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5b21b6, #6366f1);
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-inter min-h-screen">
@@ -147,8 +171,10 @@
                 </h2>
                 <p class="text-gray-600 mb-6">数値カラムから分析したいものを選択してください（最小2個、推奨3-8個）</p>
                 
-                <div id="columnSelection" class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-                    <!-- カラム選択チェックボックスがここに動的に生成される -->
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-4 mb-6 column-scroll-area" style="max-height: 400px; overflow-y: auto;">
+                    <div id="columnSelection" class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- カラム選択チェックボックスがここに動的に生成される -->
+                    </div>
                 </div>
                 
                 <div class="flex flex-wrap gap-4 items-center">

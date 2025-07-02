@@ -253,7 +253,23 @@ function handleFileSelection(e) {
         
         // データプレビューコントロールを表示
         document.getElementById('dataPreviewControls').classList.remove('hidden');
-        document.getElementById('columnSelectionSection').classList.remove('hidden');
+        
+        // 自動遷移設定をチェック
+        const autoRedirect = localStorage.getItem('autoRedirectToMultiColumn') === 'true';
+        if (autoRedirect) {
+            // 少し遅延を入れてからリダイレクト
+            setTimeout(() => {
+                goToMultiColumnAnalysis();
+            }, 1000);
+            return;
+        }
+        
+        // 新しいクイック分析選択セクションを表示
+        document.getElementById('quickAnalysisSection').classList.remove('hidden');
+        document.getElementById('quickAnalysisSection').scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
         
         // データプレビューは非表示状態にリセット
         hideDataPreview();
@@ -901,26 +917,192 @@ function goToMultiColumnAnalysis() {
         return;
     }
     
+    // 数値列のみを抽出してデータサイズを削減（スコープを広げる）
+    const compactData = currentData.map(row => {
+        const compactRow = {};
+        numericColumns.forEach(col => {
+            if (row[col] !== undefined && row[col] !== null && !isNaN(row[col])) {
+                // 数値の精度を制限してサイズを削減（小数点3桁まで）
+                const num = parseFloat(row[col]);
+                compactRow[col] = Math.round(num * 1000) / 1000;
+            }
+        });
+        return compactRow;
+    });
+
     try {
-        // 分析用データをlocalStorageに保存
-        const analysisData = {
-            selectedFile: selectedFile.value,
-            fileName: uploadedData[selectedFile.value].name,
-            data: currentData,
-            timestamp: new Date().toISOString(),
-            numericColumns: numericColumns
-        };
+        // より安全なデータ転送のため、最適化されたデータを作成
+        let optimizedData;
+        let isLimited = false;
+        let limitedRows = currentData.length;
         
-        localStorage.setItem('multiColumnAnalysisData', JSON.stringify(analysisData));
+        // データサイズを段階的に制限
+        const testSizes = [
+            { rows: Math.min(currentData.length, 2000), label: '2000行' },
+            { rows: Math.min(currentData.length, 1000), label: '1000行' },
+            { rows: Math.min(currentData.length, 500), label: '500行' },
+            { rows: Math.min(currentData.length, 200), label: '200行' },
+            { rows: Math.min(currentData.length, 100), label: '100行' }
+        ];
         
-        console.log('データ保存完了、ページ移動中...');
+        let dataWasSaved = false;
+        
+        for (const sizeTest of testSizes) {
+            const testData = compactData.slice(0, sizeTest.rows);
+            const analysisData = {
+                selectedFile: selectedFile.value,
+                fileName: uploadedData[selectedFile.value].name,
+                data: testData,
+                originalRowCount: currentData.length,
+                isLimited: sizeTest.rows < currentData.length,
+                limitDescription: sizeTest.rows < currentData.length ? sizeTest.label : '全データ',
+                timestamp: new Date().toISOString(),
+                numericColumns: numericColumns
+            };
+            
+            const dataSize = JSON.stringify(analysisData).length;
+            console.log(`${sizeTest.label}でのデータサイズ: ${(dataSize / 1024).toFixed(1)}KB`);
+            
+            // 1MB以下になるまで試行
+            if (dataSize < 1024 * 1024) {
+                try {
+                    localStorage.setItem('multiColumnAnalysisData', JSON.stringify(analysisData));
+                    
+                    if (sizeTest.rows < currentData.length) {
+                        showNotification(
+                            `データサイズを最適化しました。${sizeTest.label}を使用します。（元データ: ${currentData.length}行）`, 
+                            'warning'
+                        );
+                    }
+                    
+                    dataWasSaved = true;
+                    limitedRows = sizeTest.rows;
+                    break;
+                    
+                } catch (storageError) {
+                    console.log(`${sizeTest.label}での保存に失敗、さらに削減します...`);
+                    continue;
+                }
+            }
+        }
+        
+        if (!dataWasSaved) {
+            throw new Error('データサイズが大きすぎてlocalStorageに保存できません');
+        }
+        
+        console.log(`データ保存完了（${limitedRows}行）、ページ移動中...`);
         
         // 複数カラム分析ページに移動
         window.location.href = 'multi-column-analysis.html';
         
     } catch (error) {
-        console.error('データ保存エラー:', error);
-        showNotification('データの保存に失敗しました。', 'error');
+        console.error('データ保存エラー詳細:', error);
+        
+        // より詳細なエラーメッセージ
+        let errorMessage = 'データの保存に失敗しました。';
+        
+        if (error.name === 'QuotaExceededError') {
+            errorMessage = 'ブラウザの保存容量が不足しています。他のサイトのデータを削除するか、データサイズを小さくしてください。';
+        } else if (error.message.includes('JSON')) {
+            errorMessage = 'データの形式に問題があります。ファイルを確認してください。';
+        } else {
+            errorMessage = `データ保存エラー: ${error.message}`;
+        }
+        
+        showNotification(errorMessage, 'error');
+        
+        // 代替手段: 最小限のデータでURLパラメータを使用
+        console.log('localStorage保存失敗、代替手段を試行中...');
+        
+        // 最小限のサンプルデータを作成（50行まで）
+        const minimalData = compactData.slice(0, 50);
+        
+        try {
+            const minimalAnalysisData = {
+                fileName: uploadedData[selectedFile.value].name,
+                data: minimalData,
+                originalRowCount: currentData.length,
+                isLimited: true,
+                limitDescription: '50行（サンプル）',
+                numericColumns: numericColumns,
+                transferMethod: 'url'
+            };
+            
+            const encodedData = encodeURIComponent(JSON.stringify(minimalAnalysisData));
+            
+            // URL長制限チェック（2000文字まで）
+            if (encodedData.length > 2000) {
+                // さらに削減：20行のみ
+                const veryMinimalData = compactData.slice(0, 20);
+                const veryMinimalAnalysisData = {
+                    fileName: uploadedData[selectedFile.value].name,
+                    data: veryMinimalData,
+                    originalRowCount: currentData.length,
+                    isLimited: true,
+                    limitDescription: '20行（サンプル）',
+                    numericColumns: numericColumns,
+                    transferMethod: 'url'
+                };
+                
+                const veryMinimalEncoded = encodeURIComponent(JSON.stringify(veryMinimalAnalysisData));
+                
+                showNotification(
+                    `データが大きいため、サンプル（20行）で分析します。傾向の確認が可能です。`, 
+                    'warning'
+                );
+                
+                window.location.href = `multi-column-analysis.html?data=${veryMinimalEncoded}`;
+            } else {
+                showNotification(
+                    `データが大きいため、サンプル（50行）で分析します。傾向の確認が可能です。`, 
+                    'warning'
+                );
+                
+                window.location.href = `multi-column-analysis.html?data=${encodedData}`;
+            }
+            
+        } catch (urlError) {
+            console.error('URL パラメータでの転送も失敗:', urlError);
+            
+            // 最後の手段：データなしで移動し、再アップロードを促す
+            showNotification(
+                'データサイズが大きすぎます。複数カラム分析ページで直接ファイルをアップロードしてください。', 
+                'error'
+            );
+            
+            setTimeout(() => {
+                window.location.href = 'multi-column-analysis.html';
+            }, 3000);
+        }
+    }
+}
+
+// 詳細な個別分析に進む
+function proceedToDetailedAnalysis() {
+    console.log('詳細な個別分析に進む');
+    
+    // 既存の列選択セクションと分析選択セクションを表示
+    document.getElementById('columnSelectionSection').classList.remove('hidden');
+    document.getElementById('columnSelectionSection').scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+    
+    // クイック分析セクションを非表示にする
+    document.getElementById('quickAnalysisSection').classList.add('hidden');
+}
+
+// 自動遷移設定を保存/読み込み
+function toggleAutoRedirect() {
+    const checkbox = document.getElementById('autoRedirectOption');
+    if (checkbox) {
+        localStorage.setItem('autoRedirectToMultiColumn', checkbox.checked.toString());
+        
+        if (checkbox.checked) {
+            showNotification('今後、データ選択時に自動で複数カラム分析ページに移動します。', 'success');
+        } else {
+            showNotification('自動遷移を無効にしました。', 'info');
+        }
     }
 }
 
@@ -987,6 +1169,67 @@ function debugButtonClick() {
     }
 }
 
+// ストレージクリア機能
+function clearLocalStorage() {
+    try {
+        const keysToKeep = ['autoRedirectToMultiColumn']; // 保持する設定
+        const settings = {};
+        
+        // 保持する設定を退避
+        keysToKeep.forEach(key => {
+            const value = localStorage.getItem(key);
+            if (value) {
+                settings[key] = value;
+            }
+        });
+        
+        // localStorage を完全にクリア
+        localStorage.clear();
+        
+        // 保持する設定を復元
+        Object.keys(settings).forEach(key => {
+            localStorage.setItem(key, settings[key]);
+        });
+        
+        showNotification('ブラウザの保存データをクリアしました。', 'success');
+        
+    } catch (error) {
+        console.error('ストレージクリアエラー:', error);
+        showNotification('データクリアに失敗しました。', 'error');
+    }
+}
+
+// データサイズ情報を表示
+function showStorageInfo() {
+    try {
+        let totalSize = 0;
+        let itemCount = 0;
+        
+        for (let key in localStorage) {
+            if (localStorage.hasOwnProperty(key)) {
+                totalSize += localStorage[key].length;
+                itemCount++;
+            }
+        }
+        
+        const sizeKB = (totalSize / 1024).toFixed(2);
+        const maxSizeKB = 5120; // 約5MB
+        const usagePercent = ((totalSize / 1024 / maxSizeKB) * 100).toFixed(1);
+        
+        console.log(`localStorage使用状況: ${sizeKB}KB (${usagePercent}%) / 項目数: ${itemCount}`);
+        
+        showNotification(
+            `ストレージ使用量: ${sizeKB}KB (${usagePercent}%) | 項目数: ${itemCount}個`, 
+            totalSize > maxSizeKB * 1024 * 0.8 ? 'warning' : 'info'
+        );
+        
+    } catch (error) {
+        console.error('ストレージ情報取得エラー:', error);
+    }
+}
+
 // グローバルスコープに関数を公開（デバッグ用）
 window.debugButtonClick = debugButtonClick;
-window.goToMultiColumnAnalysis = goToMultiColumnAnalysis; 
+window.goToMultiColumnAnalysis = goToMultiColumnAnalysis;
+window.clearLocalStorage = clearLocalStorage;
+window.showStorageInfo = showStorageInfo; 

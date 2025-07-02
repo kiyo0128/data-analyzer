@@ -183,6 +183,12 @@
                     <span class="text-lg font-medium text-gray-700">データ分析</span>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <button onclick="showStorageInfo()" class="text-gray-600 hover:text-blue-600 transition-colors text-sm">
+                        <i class="fas fa-info-circle mr-1"></i>ストレージ情報
+                    </button>
+                    <button onclick="clearLocalStorage()" class="text-gray-600 hover:text-red-600 transition-colors text-sm">
+                        <i class="fas fa-trash mr-1"></i>データクリア
+                    </button>
                     <button onclick="goHome()" class="text-gray-600 hover:text-purple-600 transition-colors">
                         <i class="fas fa-home mr-2"></i>ホームに戻る
                     </button>
@@ -275,6 +281,68 @@
                         <i class="fas fa-info-circle mr-1"></i>
                         パフォーマンス向上のため、大きなデータセットでは最初の1000行のみ表示されます
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Analysis Selection Section -->
+        <div id="quickAnalysisSection" class="mb-8 hidden">
+            <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl p-8 shadow-2xl text-white">
+                <h2 class="text-3xl font-bold mb-6 flex items-center">
+                    <i class="fas fa-magic mr-3"></i>
+                    データが準備できました！次のステップを選択
+                </h2>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <!-- 複数カラム分析（推奨） -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 border border-white border-opacity-30 hover:bg-opacity-30 transition-all duration-300 cursor-pointer" onclick="goToMultiColumnAnalysis()">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 bg-yellow-400 rounded-xl flex items-center justify-center mr-4">
+                                <i class="fas fa-th text-white text-xl"></i>
+                            </div>
+                            <span class="bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-bold">推奨</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">複数カラム分析</h3>
+                        <p class="text-white text-opacity-90 mb-4">
+                            すべての変数の関係を一度に可視化<br>
+                            <strong>・相関ヒートマップ</strong><br>
+                            <strong>・散布図行列</strong><br>
+                            <strong>・相関係数表</strong>
+                        </p>
+                        <div class="flex items-center text-yellow-300">
+                            <i class="fas fa-arrow-right mr-2"></i>
+                            <span class="font-semibold">すぐに開始</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 個別分析 -->
+                    <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-6 border border-white border-opacity-30 hover:bg-opacity-30 transition-all duration-300 cursor-pointer" onclick="proceedToDetailedAnalysis()">
+                        <div class="w-12 h-12 bg-blue-400 rounded-xl flex items-center justify-center mb-4">
+                            <i class="fas fa-cog text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold mb-3">詳細な個別分析</h3>
+                        <p class="text-white text-opacity-90 mb-4">
+                            列を選択して特定の分析を実行<br>
+                            <strong>・相関分析</strong><br>
+                            <strong>・回帰分析</strong><br>
+                            <strong>・統計分析</strong>
+                        </p>
+                        <div class="flex items-center text-blue-300">
+                            <i class="fas fa-arrow-right mr-2"></i>
+                            <span class="font-semibold">設定を続行</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 自動遷移オプション -->
+                <div class="bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-4 border border-white border-opacity-20">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoRedirectOption" class="w-5 h-5 text-purple-600 bg-white bg-opacity-90 border-white border-opacity-50 rounded focus:ring-purple-500 focus:ring-2 mr-3">
+                        <span class="text-white text-opacity-90">
+                            <i class="fas fa-magic mr-2"></i>
+                            今後、データ選択時に自動で複数カラム分析ページに移動する
+                        </span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -611,6 +679,15 @@
                     localStorage.removeItem('analysisData');
                 }
             }
+            
+            // 自動遷移チェックボックスの状態を復元
+            const autoRedirectCheckbox = document.getElementById('autoRedirectOption');
+            if (autoRedirectCheckbox) {
+                const autoRedirect = localStorage.getItem('autoRedirectToMultiColumn') === 'true';
+                autoRedirectCheckbox.checked = autoRedirect;
+                autoRedirectCheckbox.addEventListener('change', toggleAutoRedirect);
+            }
+            
             // app.jsのDOMContentLoadedイベントリスナーが自動的にファイルアップロード機能を初期化します
         });
     </script>

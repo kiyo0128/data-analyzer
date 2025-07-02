@@ -465,6 +465,7 @@ async function createHeatmap() {
 async function createScatterMatrix() {
     const columns = selectedColumns;
     const data = analysisData.data;
+    const numColumns = columns.length;
     
     // 有効なデータのみを抽出
     const validData = data.filter(row => 
@@ -475,6 +476,10 @@ async function createScatterMatrix() {
             row[col] !== ''
         )
     );
+    
+    // マーカーサイズを事前計算
+    const markerSize = Math.max(2, Math.min(6, 8 - numColumns * 0.5));
+    const markerOpacity = Math.max(0.3, Math.min(0.8, 0.9 - numColumns * 0.05));
     
     const traces = [];
     
@@ -508,8 +513,8 @@ async function createScatterMatrix() {
                     yaxis: `y${i * columns.length + j + 1}`,
                     marker: { 
                         color: '#667eea', 
-                        size: 4,
-                        opacity: 0.6
+                        size: markerSize,
+                        opacity: markerOpacity
                     },
                     showlegend: false,
                     hovertemplate: 
@@ -521,17 +526,58 @@ async function createScatterMatrix() {
         }
     }
     
-    // レイアウトの設定
+    // サイズ計算
+    const baseSize = 150;
+    const minSize = 100;
+    const maxSize = 250;
+    
+    let plotSize = baseSize;
+    if (numColumns <= 3) {
+        plotSize = maxSize;
+    } else if (numColumns <= 5) {
+        plotSize = 200;
+    } else if (numColumns <= 8) {
+        plotSize = 150;
+    } else {
+        plotSize = Math.max(minSize, 600 / numColumns);
+    }
+    
+    const totalWidth = plotSize * numColumns;
+    const totalHeight = plotSize * numColumns;
+    
+    // コンテナのサイズを動的調整
+    const scatterContainer = document.getElementById('scatterContainer');
+    scatterContainer.style.minHeight = `${Math.max(600, totalHeight + 150)}px`;
+    
+    // マージン計算
+    const marginBase = Math.max(60, totalWidth * 0.08);
+    const marginTop = Math.max(100, totalHeight * 0.1);
+    
+    // レイアウト設定
     const layout = {
         title: {
-            text: `散布図行列 (${columns.length} 変数)`,
-            font: { size: 18, family: 'Inter, sans-serif' }
+            text: `散布図行列 (${numColumns} 変数)`,
+            font: { size: Math.max(16, 24 - numColumns), family: 'Inter, sans-serif' }
         },
-        font: { family: 'Inter, sans-serif' },
-        margin: { l: 60, r: 60, t: 100, b: 60 }
+        font: { 
+            family: 'Inter, sans-serif',
+            size: Math.max(10, 14 - numColumns * 0.5)
+        },
+        margin: { 
+            l: marginBase, 
+            r: marginBase, 
+            t: marginTop, 
+            b: marginBase
+        },
+        width: Math.min(1200, totalWidth + marginBase * 2),
+        height: Math.min(1000, totalHeight + marginTop + marginBase)
     };
     
-    // サブプロットの軸設定
+    // サブプロット軸設定
+    const titleFontSize = Math.max(8, 14 - numColumns);
+    const tickFontSize = Math.max(6, 12 - numColumns);
+    const domainPadding = Math.max(0.01, 0.03 - numColumns * 0.002);
+    
     for (let i = 0; i < columns.length; i++) {
         for (let j = 0; j < columns.length; j++) {
             const axisNum = i * columns.length + j + 1;
@@ -539,17 +585,19 @@ async function createScatterMatrix() {
             const yAxisKey = axisNum === 1 ? 'yaxis' : `yaxis${axisNum}`;
             
             layout[xAxisKey] = {
-                domain: [j / columns.length + 0.02, (j + 1) / columns.length - 0.02],
+                domain: [j / columns.length + domainPadding, (j + 1) / columns.length - domainPadding],
                 title: j === columns.length - 1 ? columns[j] : '',
-                titlefont: { size: 12 },
-                tickfont: { size: 10 }
+                titlefont: { size: titleFontSize },
+                tickfont: { size: tickFontSize },
+                showticklabels: numColumns <= 6
             };
             
             layout[yAxisKey] = {
-                domain: [(columns.length - i - 1) / columns.length + 0.02, (columns.length - i) / columns.length - 0.02],
+                domain: [(columns.length - i - 1) / columns.length + domainPadding, (columns.length - i) / columns.length - domainPadding],
                 title: j === 0 ? columns[i] : '',
-                titlefont: { size: 12 },
-                tickfont: { size: 10 }
+                titlefont: { size: titleFontSize },
+                tickfont: { size: tickFontSize },
+                showticklabels: numColumns <= 6
             };
         }
     }

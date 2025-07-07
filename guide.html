@@ -133,61 +133,6 @@
             </p>
         </div>
 
-        <!-- Quick Start Flow -->
-        <div class="mb-12">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
-                <i class="fas fa-play-circle mr-3 text-purple-600"></i>
-                クイックスタート フロー
-            </h2>
-            
-            <div class="card-gradient rounded-3xl p-8 shadow-lg">
-                <div class="mermaid">
-                    flowchart TD
-                        A[データを確認] --> B{データの種類は？}
-                        B -->|数値データ 2列| C{関係性を調べたい？}
-                        B -->|数値データ 1列| D{分布を調べたい？}
-                        B -->|品質データ| E{工程管理？}
-                        B -->|異常値が心配| F{変数の数は？}
-                        
-                        C -->|Yes| G[相関分析]
-                        C -->|予測したい| H[回帰分析]
-                        
-                        D -->|Yes| I[ヒストグラム]
-                        D -->|統計値が欲しい| J[記述統計]
-                        
-                        E -->|能力評価| K[工程能力分析]
-                        E -->|異常検出| L[管理図]
-                        
-                        F -->|1変数| M[異常値検出<br/>IQR・Z-score法]
-                        F -->|2変数以上| N[マハラノビス距離]
-                        
-                        G --> O[分析実行]
-                        H --> O
-                        I --> O
-                        J --> O
-                        K --> O
-                        L --> O
-                        M --> O
-                        N --> O
-                        
-                        style A fill:#e1f5fe
-                        style B fill:#fff3e0
-                        style C fill:#fff3e0
-                        style D fill:#fff3e0
-                        style E fill:#fff3e0
-                        style F fill:#fff3e0
-                        style G fill:#e8f5e8
-                        style H fill:#e8f5e8
-                        style I fill:#e8f5e8
-                        style J fill:#e8f5e8
-                        style K fill:#e8f5e8
-                        style L fill:#e8f5e8
-                        style M fill:#ffe8e8
-                        style N fill:#ffe8e8
-                        style O fill:#f3e5f5
-                </div>
-            </div>
-        </div>
 
         <!-- Analysis Patterns -->
         <div class="mb-12">

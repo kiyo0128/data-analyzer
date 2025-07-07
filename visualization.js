@@ -542,6 +542,106 @@ function displayResults(analysisType, results) {
                 </div>
             `;
             break;
+            
+        case 'histogram':
+            resultsHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-800 mb-2">サンプル数</h4>
+                        <p class="text-2xl font-bold text-blue-600">${results.statistics['サンプル数']}</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-800 mb-2">平均</h4>
+                        <p class="text-2xl font-bold text-green-600">${safeToFixed(results.statistics['平均'])}</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-purple-800 mb-2">標準偏差</h4>
+                        <p class="text-2xl font-bold text-purple-600">${safeToFixed(results.statistics['標準偏差'])}</p>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'outlier':
+            resultsHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-800 mb-2">総データ数</h4>
+                        <p class="text-2xl font-bold text-blue-600">${results.statistics['サンプル数']}</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-red-800 mb-2">異常値数</h4>
+                        <p class="text-2xl font-bold text-red-600">${results.statistics['総異常値数']}</p>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-yellow-800 mb-2">異常値率</h4>
+                        <p class="text-2xl font-bold text-yellow-600">${safeToFixed(results.statistics['異常値率'])}%</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-800 mb-2">平均</h4>
+                        <p class="text-2xl font-bold text-green-600">${safeToFixed(results.statistics['平均'])}</p>
+                    </div>
+                </div>
+                ${results.statistics['総異常値数'] > 0 ? `
+                    <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded">
+                        <h4 class="font-semibold text-red-800 mb-2">異常値検出結果</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="text-center">
+                                <p class="text-sm text-gray-600">IQR法</p>
+                                <p class="text-lg font-bold text-red-600">${results.statistics['IQR法異常値数']}個</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm text-gray-600">Z-score法</p>
+                                <p class="text-lg font-bold text-red-600">${results.statistics['Z-score法異常値数']}個</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm text-gray-600">修正Z-score法</p>
+                                <p class="text-lg font-bold text-red-600">${results.statistics['修正Z-score法異常値数']}個</p>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            break;
+            
+        case 'mahalanobis':
+            resultsHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-800 mb-2">サンプル数</h4>
+                        <p class="text-2xl font-bold text-blue-600">${results.statistics['サンプル数']}</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-red-800 mb-2">異常値数</h4>
+                        <p class="text-2xl font-bold text-red-600">${results.statistics['異常値数']}</p>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-yellow-800 mb-2">異常値率</h4>
+                        <p class="text-2xl font-bold text-yellow-600">${safeToFixed(results.statistics['異常値率'])}%</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-800 mb-2">最大距離</h4>
+                        <p class="text-2xl font-bold text-green-600">${safeToFixed(results.statistics['最大距離'])}</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-purple-800 mb-2">平均距離</h4>
+                        <p class="text-2xl font-bold text-purple-600">${safeToFixed(results.statistics['平均距離'])}</p>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-indigo-800 mb-2">閾値</h4>
+                        <p class="text-2xl font-bold text-indigo-600">${safeToFixed(results.statistics['閾値 (√χ²0.05)'])}</p>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        default:
+            resultsHTML = `
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-gray-600">分析結果が利用可能です。</p>
+                </div>
+            `;
+            break;
         }
     }
     
@@ -551,6 +651,16 @@ function displayResults(analysisType, results) {
     if (results.interpretation) {
         interpretationResults.classList.remove('hidden');
         interpretationText.innerHTML = results.interpretation;
+    } else {
+        // 解釈がない場合でも解釈セクションを表示
+        interpretationResults.classList.remove('hidden');
+        interpretationText.innerHTML = '<p class="text-gray-600">分析結果の基本的な解釈については統計値をご確認ください。</p>';
+    }
+    
+    // AI解釈ボタンを常に追加（AI機能が利用可能な場合）
+    if (typeof addAIInterpretationButton === 'function') {
+        const aiButtonHTML = addAIInterpretationButton(analysisType, results, {});
+        interpretationText.innerHTML += aiButtonHTML;
     }
 }
 

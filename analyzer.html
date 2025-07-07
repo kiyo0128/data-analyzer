@@ -10,6 +10,12 @@
     <script src="https://unpkg.com/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
+    <!-- Configuration -->
+    <script src="config.js"></script>
+    
+    <!-- AI Integration -->
+    <script src="gemini-integration.js"></script>
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -183,6 +189,9 @@
                     <span class="text-lg font-medium text-gray-700">データ分析</span>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <button onclick="showIndustryContextDialog()" class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-robot mr-2"></i>AI設定
+                    </button>
                     <button onclick="showStorageInfo()" class="text-gray-600 hover:text-blue-600 transition-colors text-sm">
                         <i class="fas fa-info-circle mr-1"></i>ストレージ情報
                     </button>

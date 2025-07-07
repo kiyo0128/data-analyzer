@@ -56,6 +56,44 @@ npx live-server
 http://localhost:8000
 ```
 
+4. **AI機能の設定（オプション）**
+```bash
+# 設定ファイルをコピー
+cp config.example.js config.js
+
+# config.js を編集してGemini APIキーを設定
+# YOUR_GEMINI_API_KEY_HERE を実際のAPIキーに置き換え
+```
+
+## 🤖 AI機能セットアップ
+
+### Gemini APIキーの取得
+
+1. **Google AI Studio にアクセス**
+   ```
+   https://aistudio.google.com/
+   ```
+
+2. **APIキーを作成**
+   - Googleアカウントでログイン
+   - 左サイドバーの「API keys」をクリック
+   - 「Create API key」ボタンをクリック
+   - 生成されたAPIキー（`AIza...`）をコピー
+
+3. **APIキーを設定**
+   ```bash
+   # config.js ファイルを編集
+   API_KEY: 'AIzaSyC-your-actual-api-key-here'
+   ```
+
+4. **設定完了**
+   - ページをリロードすると自動的にAI機能が有効になります
+   - コンソールに「🤖 AI機能が有効です」と表示されれば成功
+
+### 料金について
+- Gemini APIは一定の無料枠があります
+- 詳細は [Google AI Pricing](https://ai.google.dev/pricing) をご確認ください
+
 ## 🎯 使用方法
 
 ### 1. ホームページでの概要確認

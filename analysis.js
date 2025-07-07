@@ -1,5 +1,18 @@
 // 分析機能モジュール
 // 作成日: 2025-01-12
+// 更新日: 2025-01-07 - AI解釈機能統合
+
+// AI解釈用グローバル変数
+window.lastCorrelationResults = null;
+window.lastRegressionResults = null;
+window.lastDescriptiveResults = null;
+window.lastProcessCapabilityResults = null;
+window.lastOutlierResults = null;
+window.currentXColumn = null;
+window.currentYColumn = null;
+window.currentColumn = null;
+window.currentData = null;
+window.fileName = null;
 
 // 分析実行
 async function runAnalysis(analysisType) {
@@ -198,7 +211,7 @@ async function performCorrelationAnalysis(data, options) {
     // 散布図データ
     const plotData = createScatterPlot(xValues, yValues, xColumn, yColumn, pearsonR);
     
-    return {
+    const results = {
         statistics: {
             'Pearson相関係数': pearsonR,
             'Spearman相関係数': spearmanR,
@@ -206,8 +219,17 @@ async function performCorrelationAnalysis(data, options) {
             '決定係数 (R²)': pearsonR * pearsonR
         },
         plot: plotData,
-        interpretation: interpretCorrelation(pearsonR)
+        interpretation: interpretCorrelation(pearsonR),
+        pearsonR: pearsonR,
+        spearmanR: spearmanR
     };
+    
+    // AI解釈用にグローバル変数に保存
+    window.lastCorrelationResults = results;
+    window.currentXColumn = xColumn;
+    window.currentYColumn = yColumn;
+    
+    return results;
 }
 
 // 回帰分析
@@ -228,7 +250,7 @@ async function performRegressionAnalysis(data, options) {
     // 回帰直線付き散布図
     const plotData = createRegressionPlot(xValues, yValues, xColumn, yColumn, regression);
     
-    return {
+    const results = {
         statistics: {
             '切片 (a)': regression.b,
             '傾き (b)': regression.m,
@@ -238,8 +260,18 @@ async function performRegressionAnalysis(data, options) {
         },
         plot: plotData,
         regression: regression,
-        interpretation: interpretRegression(regression, rSquared)
+        interpretation: interpretRegression(regression, rSquared),
+        slope: regression.m,
+        intercept: regression.b,
+        rSquared: rSquared
     };
+    
+    // AI解釈用にグローバル変数に保存
+    window.lastRegressionResults = results;
+    window.currentXColumn = xColumn;
+    window.currentYColumn = yColumn;
+    
+    return results;
 }
 
 // 記述統計
@@ -272,11 +304,19 @@ async function performDescriptiveAnalysis(data, options) {
     // ボックスプロット
     const plotData = createBoxPlot(values, columnToAnalyze);
     
-    return {
+    const results = {
         statistics: stats,
         plot: plotData,
-        interpretation: interpretDescriptiveStats(stats)
+        interpretation: interpretDescriptiveStats(stats),
+        column: columnToAnalyze,
+        values: values
     };
+    
+    // AI解釈用にグローバル変数に保存
+    window.lastDescriptiveResults = results;
+    window.currentColumn = columnToAnalyze;
+    
+    return results;
 }
 
 // ヒストグラム分析
@@ -357,11 +397,22 @@ async function performProcessCapabilityAnalysis(data, options) {
         'Cpl': cpl
     };
     
-    return {
+    const results = {
         statistics: stats,
         plot: plotData,
-        interpretation: interpretProcessCapability(cp, cpk)
+        interpretation: interpretProcessCapability(cp, cpk),
+        cp: cp,
+        cpk: cpk,
+        usl: usl,
+        lsl: lsl,
+        column: columnToAnalyze
     };
+    
+    // AI解釈用にグローバル変数に保存
+    window.lastProcessCapabilityResults = results;
+    window.currentColumn = columnToAnalyze;
+    
+    return results;
 }
 
 // 管理図分析
@@ -703,7 +754,7 @@ async function performOutlierAnalysis(data, options) {
         '異常値率': (anyOutliers.length / values.length * 100)
     };
     
-    return {
+    const results = {
         statistics: stats,
         plot: plotData,
         outliers: {
@@ -713,8 +764,17 @@ async function performOutlierAnalysis(data, options) {
             any: anyOutliers
         },
         analysisResults: analysisResults,
-        interpretation: interpretOutliers(anyOutliers.length, values.length)
+        interpretation: interpretOutliers(anyOutliers.length, values.length),
+        column: columnToAnalyze,
+        outlierCount: anyOutliers.length,
+        totalCount: values.length
     };
+    
+    // AI解釈用にグローバル変数に保存
+    window.lastOutlierResults = results;
+    window.currentColumn = columnToAnalyze;
+    
+    return results;
 }
 
 // 中央絶対偏差（MAD）の計算

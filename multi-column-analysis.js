@@ -444,10 +444,15 @@ async function createHeatmap() {
         },
         yaxis: {
             title: '',
-            font: { family: 'Inter, sans-serif' }
+            tickangle: -45,
+            tickfont: { 
+                family: 'Inter, sans-serif',
+                size: 12
+            },
+            automargin: true
         },
         annotations: annotations,
-        margin: { l: 100, r: 100, t: 100, b: 150 },
+        margin: { l: 150, r: 100, t: 100, b: 150 },
         font: { family: 'Inter, sans-serif' }
     };
     

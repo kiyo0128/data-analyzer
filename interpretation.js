@@ -1,5 +1,6 @@
 // 分析結果解釈機能モジュール
 // 作成日: 2025-01-12
+// 更新日: 2025-01-07 - Gemini AI統合機能追加
 
 // 相関係数の解釈
 function interpretCorrelation(r) {
@@ -629,4 +630,321 @@ function interpretOutliers(outlierCount, totalCount) {
     }
     
     return interpretation;
-} 
+}
+
+// ==============================================
+// AI 統合解釈機能 (Gemini API)
+// ==============================================
+
+// AI統合解釈のメイン関数
+async function getAIEnhancedInterpretation(analysisType, results, context = {}) {
+    if (!geminiService || !geminiService.isConfigured()) {
+        return null;
+    }
+
+    try {
+        switch (analysisType) {
+            case 'correlation':
+                return await geminiService.enhanceCorrelationInterpretation(
+                    results, 
+                    context.xColumn, 
+                    context.yColumn, 
+                    context
+                );
+            case 'regression':
+                return await geminiService.enhanceRegressionInterpretation(
+                    results, 
+                    context.xColumn, 
+                    context.yColumn, 
+                    context
+                );
+            case 'descriptive':
+                return await geminiService.enhanceDescriptiveStatsInterpretation(
+                    results.stats, 
+                    context.column, 
+                    context.rawData, 
+                    context
+                );
+            case 'processCapability':
+                return await geminiService.enhanceProcessCapabilityInterpretation(
+                    results.cp, 
+                    results.cpk, 
+                    context
+                );
+            case 'outliers':
+            case 'mahalanobis':
+                return await geminiService.enhanceOutlierInterpretation(
+                    results.outlierCount || 0, 
+                    results.totalCount || 0, 
+                    results.outlierData, 
+                    context
+                );
+            default:
+                return null;
+        }
+    } catch (error) {
+        console.error('AI interpretation failed:', error);
+        return `
+            <div class="ai-error bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                <p class="text-red-700">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    AI解釈の生成中にエラーが発生しました: ${error.message}
+                </p>
+            </div>
+        `;
+    }
+}
+
+// AI解釈ボタンを結果表示エリアに追加
+function addAIInterpretationButton(analysisType, results, context) {
+    if (!geminiService || !geminiService.isConfigured()) {
+        return '';
+    }
+
+    const buttonId = `ai-interpret-${Date.now()}`;
+    const containerId = `ai-result-${Date.now()}`;
+
+    return `
+        <div class="mt-6 border-t pt-6">
+            <button 
+                id="${buttonId}" 
+                onclick="generateAIInterpretation('${analysisType}', '${buttonId}', '${containerId}')" 
+                class="ai-interpret-btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+                <i class="fas fa-robot mr-2"></i>
+                AI詳細解釈を生成
+                <i class="fas fa-sparkles ml-2"></i>
+            </button>
+            <div id="${containerId}" class="mt-4"></div>
+        </div>
+    `;
+}
+
+// AI解釈生成の実行
+async function generateAIInterpretation(analysisType, buttonId, containerId) {
+    const button = document.getElementById(buttonId);
+    const container = document.getElementById(containerId);
+
+    if (!button || !container) return;
+
+    // ローディング状態に変更
+    button.innerHTML = `
+        <i class="fas fa-spinner fa-spin mr-2"></i>
+        AI解釈を生成中...
+    `;
+    button.disabled = true;
+
+    try {
+        // コンテキスト情報を収集
+        const context = collectAnalysisContext(analysisType);
+        
+        // 現在の分析結果を取得（グローバル変数から）
+        const results = getCurrentAnalysisResults(analysisType);
+        
+        // AI解釈を生成
+        const aiInterpretation = await getAIEnhancedInterpretation(analysisType, results, context);
+        
+        if (aiInterpretation) {
+            container.innerHTML = aiInterpretation;
+            
+            // 成功状態のボタン
+            button.innerHTML = `
+                <i class="fas fa-check mr-2"></i>
+                AI解釈完了
+            `;
+            button.classList.add('bg-green-500', 'hover:bg-green-600');
+            button.classList.remove('bg-gradient-to-r', 'from-purple-600', 'to-blue-600');
+        } else {
+            throw new Error('AI解釈の生成に失敗しました');
+        }
+
+    } catch (error) {
+        console.error('AI interpretation generation failed:', error);
+        container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p class="text-red-700">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    AI解釈の生成に失敗しました: ${error.message}
+                </p>
+            </div>
+        `;
+        
+        // エラー状態のボタン
+        button.innerHTML = `
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            再試行
+        `;
+        button.disabled = false;
+    }
+}
+
+// 分析コンテキストの収集
+function collectAnalysisContext(analysisType) {
+    // ページの現在の状態から分析コンテキストを収集
+    const context = {
+        industry: localStorage.getItem('industry_context') || '製造業',
+        dataType: localStorage.getItem('data_type_context') || '品質データ',
+        timestamp: new Date().toISOString()
+    };
+
+    // 分析固有のコンテキスト
+    if (typeof currentXColumn !== 'undefined') context.xColumn = currentXColumn;
+    if (typeof currentYColumn !== 'undefined') context.yColumn = currentYColumn;
+    if (typeof currentColumn !== 'undefined') context.column = currentColumn;
+    if (typeof currentData !== 'undefined') context.sampleSize = currentData.length;
+    if (typeof fileName !== 'undefined') context.fileName = fileName;
+
+    return context;
+}
+
+// 現在の分析結果を取得
+function getCurrentAnalysisResults(analysisType) {
+    // グローバル変数から現在の分析結果を取得
+    // この部分は実際の実装に合わせて調整が必要
+    switch (analysisType) {
+        case 'correlation':
+            return window.lastCorrelationResults || {};
+        case 'regression':
+            return window.lastRegressionResults || {};
+        case 'descriptive':
+            return window.lastDescriptiveResults || {};
+        case 'processCapability':
+            return window.lastProcessCapabilityResults || {};
+        case 'outliers':
+        case 'mahalanobis':
+            return window.lastOutlierResults || {};
+        default:
+            return {};
+    }
+}
+
+// 業界コンテキストの設定UI
+function showIndustryContextDialog() {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-cog mr-2 text-purple-600"></i>
+                AI解釈設定
+            </h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">業界</label>
+                    <select id="industry-select" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="製造業">製造業</option>
+                        <option value="化学・製薬">化学・製薬</option>
+                        <option value="自動車">自動車</option>
+                        <option value="電子・半導体">電子・半導体</option>
+                        <option value="食品">食品</option>
+                        <option value="建設">建設</option>
+                        <option value="エネルギー">エネルギー</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">データタイプ</label>
+                    <select id="datatype-select" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="品質データ">品質データ</option>
+                        <option value="生産データ">生産データ</option>
+                        <option value="検査データ">検査データ</option>
+                        <option value="設備データ">設備データ</option>
+                        <option value="環境データ">環境データ</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Gemini API Key</label>
+                    <input 
+                        type="password" 
+                        id="api-key-input" 
+                        placeholder="AIxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Google AI Studio で取得したAPIキーを入力してください
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-8">
+                <button onclick="closeIndustryContextDialog()" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                    キャンセル
+                </button>
+                <button onclick="saveIndustryContext()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg">
+                    保存
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 現在の設定値を読み込み
+    document.getElementById('industry-select').value = localStorage.getItem('industry_context') || '製造業';
+    document.getElementById('datatype-select').value = localStorage.getItem('data_type_context') || '品質データ';
+    
+    const savedApiKey = localStorage.getItem('gemini_api_key');
+    if (savedApiKey) {
+        try {
+            document.getElementById('api-key-input').value = atob(savedApiKey);
+        } catch (error) {
+            console.error('Failed to load API key');
+        }
+    }
+}
+
+function closeIndustryContextDialog() {
+    const modal = document.querySelector('.fixed.inset-0');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function saveIndustryContext() {
+    const industry = document.getElementById('industry-select').value;
+    const dataType = document.getElementById('datatype-select').value;
+    const apiKey = document.getElementById('api-key-input').value.trim();
+    
+    // 設定を保存
+    localStorage.setItem('industry_context', industry);
+    localStorage.setItem('data_type_context', dataType);
+    
+    // APIキーを更新
+    if (apiKey) {
+        updateGeminiApiKey(apiKey);
+    }
+    
+    closeIndustryContextDialog();
+    
+    // 成功メッセージ
+    showNotification('設定が保存されました', 'success');
+}
+
+// 通知表示機能
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-semibold z-50 transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 
+        'bg-blue-500'
+    }`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} mr-2"></i>
+        ${message}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// AI統合解釈機能は上記で定義済み 

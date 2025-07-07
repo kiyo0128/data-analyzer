@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API テスト - DataAnalyzer Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Configuration -->
+    <script src="config.js"></script>
+    
+    <!-- AI Integration -->
+    <script src="gemini-integration.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        .hero-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .test-result {
+            transition: all 0.3s ease;
+        }
+        
+        .success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .loading {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="hero-gradient text-white p-8">
+        <div class="container mx-auto text-center">
+            <h1 class="text-4xl font-bold mb-4">
+                <i class="fas fa-robot mr-3"></i>
+                Gemini API テスト
+            </h1>
+            <p class="text-xl opacity-90">
+                AI機能が正常に動作するかテストします
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-8 max-w-4xl">
+        
+        <!-- API Status -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                API設定状態
+            </h2>
+            
+            <div id="apiStatus" class="space-y-3">
+                <div class="flex items-center">
+                    <span class="w-3 h-3 bg-gray-400 rounded-full mr-3"></span>
+                    <span>設定を確認中...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Cases -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- Basic Test -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-play-circle mr-2 text-green-600"></i>
+                    基本接続テスト
+                </h3>
+                <p class="text-gray-600 mb-4">
+                    Gemini APIとの基本的な接続をテストします
+                </p>
+                <button onclick="runBasicTest()" id="basicTestBtn" 
+                    class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-rocket mr-2"></i>
+                    基本テスト実行
+                </button>
+                <div id="basicTestResult" class="mt-4"></div>
+            </div>
+
+            <!-- Analysis Test -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>
+                    分析解釈テスト
+                </h3>
+                <p class="text-gray-600 mb-4">
+                    実際の分析データでの解釈機能をテストします
+                </p>
+                <button onclick="runAnalysisTest()" id="analysisTestBtn"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-brain mr-2"></i>
+                    分析テスト実行
+                </button>
+                <div id="analysisTestResult" class="mt-4"></div>
+            </div>
+        </div>
+
+        <!-- Performance Test -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-stopwatch mr-2 text-orange-600"></i>
+                パフォーマンステスト
+            </h3>
+            <div class="grid md:grid-cols-3 gap-4 mb-4">
+                <button onclick="runSpeedTest()" id="speedTestBtn"
+                    class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-tachometer-alt mr-2"></i>
+                    応答速度テスト
+                </button>
+                <button onclick="runMultipleTest()" id="multipleTestBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-list mr-2"></i>
+                    複数リクエストテスト
+                </button>
+                <button onclick="runAllTests()" id="allTestsBtn"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check-double mr-2"></i>
+                    全テスト実行
+                </button>
+            </div>
+            <div id="performanceTestResult"></div>
+        </div>
+
+        <!-- Test Results -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-clipboard-list mr-2 text-indigo-600"></i>
+                テスト結果ログ
+            </h3>
+            <div id="testLog" class="bg-gray-50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
+                <!-- Test logs will appear here -->
+            </div>
+            <div class="mt-4 flex justify-end space-x-2">
+                <button onclick="clearLog()" class="text-gray-600 hover:text-gray-800 px-3 py-1 text-sm">
+                    <i class="fas fa-trash mr-1"></i>ログクリア
+                </button>
+                <button onclick="exportLog()" class="text-blue-600 hover:text-blue-800 px-3 py-1 text-sm">
+                    <i class="fas fa-download mr-1"></i>ログエクスポート
+                </button>
+            </div>
+        </div>
+
+        <!-- Back to Analyzer -->
+        <div class="text-center mt-8">
+            <a href="analyzer.html" class="inline-flex items-center bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>
+                分析ページに戻る
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let testLogs = [];
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiStatus();
+            log('🚀 Gemini APIテストページを開始しました', 'info');
+        });
+
+        // API設定状態の確認
+        function checkApiStatus() {
+            const statusElement = document.getElementById('apiStatus');
+            
+            try {
+                // 設定の確認
+                if (typeof CONFIG === 'undefined') {
+                    showStatus(statusElement, 'error', 'CONFIG オブジェクトが見つかりません');
+                    return;
+                }
+
+                if (!CONFIG.GEMINI || !CONFIG.GEMINI.API_KEY) {
+                    showStatus(statusElement, 'error', 'Gemini APIキーが設定されていません');
+                    return;
+                }
+
+                if (CONFIG.GEMINI.API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+                    showStatus(statusElement, 'error', 'APIキーがデフォルト値のままです');
+                    return;
+                }
+
+                if (!CONFIG.GEMINI.API_KEY.startsWith('AIza')) {
+                    showStatus(statusElement, 'error', 'APIキーの形式が正しくありません');
+                    return;
+                }
+
+                // Gemini サービスの確認
+                if (typeof geminiService === 'undefined' || !geminiService) {
+                    showStatus(statusElement, 'warning', 'Gemini サービスが初期化されていません');
+                    return;
+                }
+
+                if (!geminiService.isConfigured()) {
+                    showStatus(statusElement, 'warning', 'Gemini サービスが無効です');
+                    return;
+                }
+
+                showStatus(statusElement, 'success', 'API設定が正常です');
+                log('✅ API設定確認完了', 'success');
+
+            } catch (error) {
+                showStatus(statusElement, 'error', `設定確認エラー: ${error.message}`);
+                log(`❌ API設定確認エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // ステータス表示
+        function showStatus(element, type, message) {
+            const colors = {
+                success: 'text-green-600 bg-green-600',
+                warning: 'text-yellow-600 bg-yellow-600', 
+                error: 'text-red-600 bg-red-600',
+                info: 'text-blue-600 bg-blue-600'
+            };
+
+            const icons = {
+                success: 'fas fa-check-circle',
+                warning: 'fas fa-exclamation-triangle',
+                error: 'fas fa-times-circle',
+                info: 'fas fa-info-circle'
+            };
+
+            element.innerHTML = `
+                <div class="flex items-center">
+                    <span class="w-3 h-3 ${colors[type].split(' ')[1]} rounded-full mr-3"></span>
+                    <i class="${icons[type]} ${colors[type].split(' ')[0]} mr-2"></i>
+                    <span class="${colors[type].split(' ')[0]}">${message}</span>
+                </div>
+            `;
+        }
+
+        // 基本接続テスト
+        async function runBasicTest() {
+            const button = document.getElementById('basicTestBtn');
+            const result = document.getElementById('basicTestResult');
+            
+            log('🔄 基本接続テストを開始...', 'info');
+            showTestLoading(button, result, '基本接続テスト中...');
+
+            try {
+                const startTime = Date.now();
+                const response = await geminiService.callGeminiAPI('こんにちは！これはテストメッセージです。「OK」と返答してください。');
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                showTestSuccess(button, result, `
+                    <strong>接続成功!</strong><br>
+                    応答時間: ${duration}ms<br>
+                    レスポンス: ${response.substring(0, 100)}...
+                `);
+                
+                log(`✅ 基本接続テスト成功 (${duration}ms)`, 'success');
+
+            } catch (error) {
+                showTestError(button, result, `接続エラー: ${error.message}`);
+                log(`❌ 基本接続テストエラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 分析解釈テスト
+        async function runAnalysisTest() {
+            const button = document.getElementById('analysisTestBtn');
+            const result = document.getElementById('analysisTestResult');
+            
+            log('🔄 分析解釈テストを開始...', 'info');
+            showTestLoading(button, result, '分析解釈テスト中...');
+
+            try {
+                const startTime = Date.now();
+                
+                // サンプル相関分析結果
+                const sampleResults = {
+                    pearsonR: 0.85,
+                    spearmanR: 0.82
+                };
+                
+                const context = {
+                    xColumn: '温度',
+                    yColumn: '品質スコア',
+                    industry: '製造業',
+                    dataType: '品質データ',
+                    sampleSize: 100
+                };
+
+                const interpretation = await geminiService.enhanceCorrelationInterpretation(
+                    sampleResults, 
+                    context.xColumn, 
+                    context.yColumn, 
+                    context
+                );
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                showTestSuccess(button, result, `
+                    <strong>分析解釈成功!</strong><br>
+                    処理時間: ${duration}ms<br>
+                    解釈長: ${interpretation.length}文字
+                `);
+                
+                log(`✅ 分析解釈テスト成功 (${duration}ms)`, 'success');
+
+            } catch (error) {
+                showTestError(button, result, `分析解釈エラー: ${error.message}`);
+                log(`❌ 分析解釈テストエラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 応答速度テスト
+        async function runSpeedTest() {
+            const button = document.getElementById('speedTestBtn');
+            const result = document.getElementById('performanceTestResult');
+            
+            log('🔄 応答速度テストを開始...', 'info');
+            showTestLoading(button, result, '応答速度測定中...');
+
+            try {
+                const tests = [];
+                for (let i = 0; i < 3; i++) {
+                    const startTime = Date.now();
+                    await geminiService.callGeminiAPI(`テスト${i + 1}: 短い応答をお願いします。`);
+                    const endTime = Date.now();
+                    tests.push(endTime - startTime);
+                }
+
+                const avgTime = tests.reduce((a, b) => a + b, 0) / tests.length;
+                const minTime = Math.min(...tests);
+                const maxTime = Math.max(...tests);
+
+                showTestSuccess(button, result, `
+                    <strong>応答速度テスト完了</strong><br>
+                    平均: ${avgTime.toFixed(0)}ms<br>
+                    最速: ${minTime}ms / 最遅: ${maxTime}ms
+                `);
+                
+                log(`✅ 応答速度テスト完了 - 平均: ${avgTime.toFixed(0)}ms`, 'success');
+
+            } catch (error) {
+                showTestError(button, result, `速度テストエラー: ${error.message}`);
+                log(`❌ 応答速度テストエラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 複数リクエストテスト
+        async function runMultipleTest() {
+            const button = document.getElementById('multipleTestBtn');
+            const result = document.getElementById('performanceTestResult');
+            
+            log('🔄 複数リクエストテストを開始...', 'info');
+            showTestLoading(button, result, '複数リクエスト送信中...');
+
+            try {
+                const promises = [];
+                for (let i = 0; i < 3; i++) {
+                    promises.push(geminiService.callGeminiAPI(`並列テスト${i + 1}: 確認`));
+                }
+
+                const startTime = Date.now();
+                const results = await Promise.all(promises);
+                const endTime = Date.now();
+                const totalTime = endTime - startTime;
+
+                showTestSuccess(button, result, `
+                    <strong>複数リクエストテスト完了</strong><br>
+                    同時実行: 3リクエスト<br>
+                    総時間: ${totalTime}ms
+                `);
+                
+                log(`✅ 複数リクエストテスト完了 - ${totalTime}ms`, 'success');
+
+            } catch (error) {
+                showTestError(button, result, `複数リクエストエラー: ${error.message}`);
+                log(`❌ 複数リクエストテストエラー: ${error.message}`, 'error');
+            }
+        }
+
+        // 全テスト実行
+        async function runAllTests() {
+            const button = document.getElementById('allTestsBtn');
+            
+            log('🔄 全テストを開始します...', 'info');
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>全テスト実行中...';
+            button.disabled = true;
+
+            try {
+                await runBasicTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await runAnalysisTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await runSpeedTest();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await runMultipleTest();
+
+                button.innerHTML = '<i class="fas fa-check mr-2"></i>全テスト完了';
+                button.className = button.className.replace('bg-red-600', 'bg-green-600');
+                log('🎉 全テストが正常に完了しました！', 'success');
+
+            } catch (error) {
+                button.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>テスト中断';
+                button.className = button.className.replace('bg-red-600', 'bg-red-600');
+                log(`❌ 全テスト中断: ${error.message}`, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        // テスト状態表示関数
+        function showTestLoading(button, result, message) {
+            button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${message}`;
+            button.disabled = true;
+            result.innerHTML = `
+                <div class="test-result loading text-white p-3 rounded-lg">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>${message}
+                </div>
+            `;
+        }
+
+        function showTestSuccess(button, result, message) {
+            button.innerHTML = `<i class="fas fa-check mr-2"></i>テスト完了`;
+            button.disabled = false;
+            result.innerHTML = `
+                <div class="test-result success text-white p-3 rounded-lg">
+                    <i class="fas fa-check-circle mr-2"></i>${message}
+                </div>
+            `;
+        }
+
+        function showTestError(button, result, message) {
+            button.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>再試行`;
+            button.disabled = false;
+            result.innerHTML = `
+                <div class="test-result error text-white p-3 rounded-lg">
+                    <i class="fas fa-times-circle mr-2"></i>${message}
+                </div>
+            `;
+        }
+
+        // ログ機能
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            testLogs.push({ timestamp, message, type });
+            
+            const logElement = document.getElementById('testLog');
+            const colors = {
+                info: 'text-blue-600',
+                success: 'text-green-600',
+                error: 'text-red-600',
+                warning: 'text-yellow-600'
+            };
+            
+            logElement.innerHTML += `<div class="${colors[type]}">${logEntry}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            testLogs = [];
+            document.getElementById('testLog').innerHTML = '';
+            log('📋 ログをクリアしました', 'info');
+        }
+
+        function exportLog() {
+            const logText = testLogs.map(entry => 
+                `[${entry.timestamp}] ${entry.message}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gemini-test-log-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            log('💾 ログをエクスポートしました', 'success');
+        }
+    </script>
+</body>
+</html>
